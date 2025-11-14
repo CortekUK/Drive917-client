@@ -10,6 +10,10 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { formatInTimeZone } from "date-fns-tz";
 
+interface VehiclePhoto {
+  photo_url: string;
+}
+
 interface Vehicle {
   id: string;
   // Portal schema fields
@@ -26,6 +30,7 @@ interface Vehicle {
   monthly_rate?: number;
   daily_rate?: number;
   weekly_rate?: number;
+  vehicle_photos?: VehiclePhoto[];
 }
 
 const BookingVehicles = () => {
@@ -58,19 +63,26 @@ const BookingVehicles = () => {
       // Fetch only vehicles with status "Available" (not rented, not in maintenance)
       const { data, error } = await supabase
         .from("vehicles")
-        .select("*")
+        .select(`
+          *,
+          vehicle_photos (
+            photo_url
+          )
+        `)
         .eq("status", "Available")
         .order("monthly_rate", { ascending: true });
 
       if (error) throw error;
 
       console.log(`Loaded ${data?.length || 0} available (non-rented) vehicles`);
+      console.log('First vehicle data:', data?.[0]);
+      console.log('Vehicle photos:', data?.[0]?.vehicle_photos);
 
       if (!data || data.length === 0) {
         toast.info("No vehicles available at the moment");
       }
 
-      setVehicles(data || []);
+      setVehicles(data as any || []);
     } catch (error: any) {
       toast.error("Failed to load vehicles");
       console.error("Error loading vehicles:", error);
@@ -188,8 +200,18 @@ const BookingVehicles = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {vehicles.map((vehicle) => (
                 <Card key={vehicle.id} className="overflow-hidden hover:shadow-glow transition-all">
-                  <div className="aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
-                    <Car className="w-24 h-24 text-muted-foreground/30" />
+                  <div className="aspect-[4/3] overflow-hidden bg-muted">
+                    {vehicle.vehicle_photos?.[0]?.photo_url ? (
+                      <img
+                        src={vehicle.vehicle_photos[0].photo_url}
+                        alt={`${vehicle.make} ${vehicle.model}`}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Car className="w-24 h-24 text-muted-foreground/30" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-3">

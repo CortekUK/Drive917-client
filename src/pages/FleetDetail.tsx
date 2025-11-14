@@ -12,6 +12,10 @@ import Footer from "@/components/Footer";
 import { ArrowLeft, Users, Briefcase, Gauge, Droplet, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
+interface VehiclePhoto {
+  photo_url: string;
+}
+
 interface Vehicle {
   id: string;
   reg: string;
@@ -23,7 +27,7 @@ interface Vehicle {
   weekly_rent: number;
   monthly_rent: number;
   status: string;
-  photo_url?: string | null;
+  vehicle_photos?: VehiclePhoto[];
   created_at?: string;
   description?: string | null;
 }
@@ -77,23 +81,33 @@ export default function FleetDetail() {
       // Load vehicle details
       const { data: vehicleData, error: vehicleError } = await supabase
         .from("vehicles")
-        .select("*")
+        .select(`
+          *,
+          vehicle_photos (
+            photo_url
+          )
+        `)
         .eq("id", id)
         .single();
 
       if (vehicleError) throw vehicleError;
-      setVehicle(vehicleData);
+      setVehicle(vehicleData as any);
 
       // Load similar vehicles (same make)
       if (vehicleData && vehicleData.make) {
         const { data: similarData } = await supabase
           .from("vehicles")
-          .select("*")
+          .select(`
+            *,
+            vehicle_photos (
+              photo_url
+            )
+          `)
           .eq("make", vehicleData.make)
           .neq("id", id)
           .limit(3);
 
-        setSimilarVehicles(similarData || []);
+        setSimilarVehicles(similarData as any || []);
       }
 
       // Load service inclusions
@@ -208,7 +222,7 @@ export default function FleetDetail() {
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage: `url(${vehicle.photo_url || '/placeholder.svg'})`,
+              backgroundImage: `url(${vehicle.vehicle_photos?.[0]?.photo_url || '/placeholder.svg'})`,
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black" />
@@ -569,7 +583,7 @@ export default function FleetDetail() {
                     >
                       <div className="aspect-[16/9] overflow-hidden">
                         <img
-                          src={similarVehicle.photo_url || "/placeholder.svg"}
+                          src={similarVehicle.vehicle_photos?.[0]?.photo_url || "/placeholder.svg"}
                           alt={similarVehicleName}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />

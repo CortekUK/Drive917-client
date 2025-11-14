@@ -23,6 +23,10 @@ import LocationAutocomplete from "./LocationAutocomplete";
 import BookingCheckoutStep from "./BookingCheckoutStep";
 import ProtectionPlanSelector from "./ProtectionPlanSelector";
 import { stripePromise } from "@/config/stripe";
+interface VehiclePhoto {
+  photo_url: string;
+}
+
 interface Vehicle {
   id: string;
   // Portal schema fields
@@ -39,7 +43,7 @@ interface Vehicle {
   monthly_rent?: number;
   daily_rent?: number;
   weekly_rent?: number;
-  photo_url?: string | null;
+  vehicle_photos?: VehiclePhoto[];
   description?: string | null;
 }
 interface PricingExtra {
@@ -189,7 +193,12 @@ const MultiStepBookingWidget = () => {
   const loadData = async () => {
     const {
       data: vehiclesData
-    } = await supabase.from("vehicles").select("*").eq("status", "Available").order("reg");
+    } = await supabase.from("vehicles").select(`
+      *,
+      vehicle_photos (
+        photo_url
+      )
+    `).eq("status", "Available").order("reg");
     const {
       data: extrasData
     } = await supabase.from("pricing_extras").select("*");
@@ -1929,9 +1938,9 @@ const MultiStepBookingWidget = () => {
                             <div className="flex flex-col sm:flex-row">
                               {/* Image */}
                               <div className="relative w-full sm:w-64 aspect-video sm:aspect-square overflow-hidden bg-gradient-to-br from-muted/30 to-muted/5">
-                                {vehicle.photo_url ? (
+                                {vehicle.vehicle_photos?.[0]?.photo_url ? (
                                   <img
-                                    src={vehicle.photo_url}
+                                    src={vehicle.vehicle_photos[0].photo_url}
                                     alt={vehicleName}
                                     className="w-full h-full object-cover"
                                     loading="lazy"
@@ -1942,7 +1951,7 @@ const MultiStepBookingWidget = () => {
                                     }}
                                   />
                                 ) : null}
-                                <div className={`${vehicle.photo_url ? 'hidden' : 'flex'} items-center justify-center h-full w-full absolute inset-0`}>
+                                <div className={`${vehicle.vehicle_photos?.[0]?.photo_url ? 'hidden' : 'flex'} items-center justify-center h-full w-full absolute inset-0`}>
                                   <Car className="w-16 h-16 opacity-20 text-muted-foreground" />
                                 </div>
 
@@ -2057,9 +2066,9 @@ const MultiStepBookingWidget = () => {
 
                           {/* Image Block */}
                           <div className={cn("relative aspect-video overflow-hidden bg-gradient-to-br", isRollsRoyce ? "from-[#C5A572]/10 to-[#8B7355]/10" : "from-muted/30 to-muted/5")}>
-                            {vehicle.photo_url ? (
+                            {vehicle.vehicle_photos?.[0]?.photo_url ? (
                               <img
-                                src={vehicle.photo_url}
+                                src={vehicle.vehicle_photos[0].photo_url}
                                 alt={vehicleName}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
@@ -2070,7 +2079,7 @@ const MultiStepBookingWidget = () => {
                                 }}
                               />
                             ) : null}
-                            <div className={`${vehicle.photo_url ? 'hidden' : 'flex'} flex-col items-center justify-center h-full w-full absolute inset-0`}>
+                            <div className={`${vehicle.vehicle_photos?.[0]?.photo_url ? 'hidden' : 'flex'} flex-col items-center justify-center h-full w-full absolute inset-0`}>
                               <Car className={cn("w-16 h-16 mb-2 opacity-20", isRollsRoyce ? "text-[#C5A572]" : "text-muted-foreground")} />
                             </div>
                           </div>
@@ -2181,9 +2190,9 @@ const MultiStepBookingWidget = () => {
                       {/* Selected Vehicle */}
                       <div className="flex gap-3">
                         <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0 relative">
-                          {selectedVehicle.photo_url ? (
+                          {selectedVehicle.vehicle_photos?.[0]?.photo_url ? (
                             <img
-                              src={selectedVehicle.photo_url}
+                              src={selectedVehicle.vehicle_photos[0].photo_url}
                               alt={selectedVehicle.make && selectedVehicle.model ? `${selectedVehicle.make} ${selectedVehicle.model}` : selectedVehicle.reg}
                               className="w-full h-full object-cover"
                               loading="lazy"
@@ -2194,7 +2203,7 @@ const MultiStepBookingWidget = () => {
                               }}
                             />
                           ) : null}
-                          <div className={`${selectedVehicle.photo_url ? 'hidden' : 'flex'} w-full h-full items-center justify-center absolute inset-0`}>
+                          <div className={`${selectedVehicle.vehicle_photos?.[0]?.photo_url ? 'hidden' : 'flex'} w-full h-full items-center justify-center absolute inset-0`}>
                             <Car className="w-6 h-6 text-muted-foreground opacity-30" />
                           </div>
                         </div>
