@@ -21,6 +21,7 @@ import BookingConfirmation from "./BookingConfirmation";
 import CloseProtectionModal from "./CloseProtectionModal";
 import LocationAutocomplete from "./LocationAutocomplete";
 import BookingCheckoutStep from "./BookingCheckoutStep";
+import ProtectionPlanSelector from "./ProtectionPlanSelector";
 import { stripePromise } from "@/config/stripe";
 interface Vehicle {
   id: string;
@@ -98,8 +99,12 @@ const MultiStepBookingWidget = () => {
     customerPhone: "",
     customerType: "",
     licenseNumber: "",
-    verificationSessionId: "" // Store verification session ID to link after customer creation
+    verificationSessionId: "", // Store verification session ID to link after customer creation
+    protectionPlanId: null as string | null, // Selected protection plan ID
   });
+
+  // Protection plan state
+  const [selectedProtectionPlan, setSelectedProtectionPlan] = useState<any>(null);
 
   // Identity verification state
   const [verificationSessionId, setVerificationSessionId] = useState<string | null>(null);
@@ -133,20 +138,9 @@ const MultiStepBookingWidget = () => {
     }
   }, []);
 
-  // Reset verification when customer details change
-  useEffect(() => {
-    // Only reset if verification was started (not init)
-    if (verificationStatus !== 'init' && verificationSessionId) {
-      // Reset verification state when customer details change after verification started
-      setVerificationSessionId(null);
-      setVerificationStatus('init');
-      setFormData(prev => ({ ...prev, verificationSessionId: "" }));
-      localStorage.removeItem('verificationSessionId');
-      localStorage.removeItem('verificationToken');
-      localStorage.removeItem('verificationStatus');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.customerName, formData.customerEmail, formData.customerPhone]);
+  // Note: Verification no longer resets when customer details change
+  // Users can freely edit their details after verification
+  // The verification session ID remains valid
 
   // Sync return location when "Same as Pickup" is enabled
   useEffect(() => {
@@ -2232,8 +2226,22 @@ const MultiStepBookingWidget = () => {
               </div>
             </div>
 
+            {/* Protection Plan Selection - Show only when vehicle is selected */}
+            {formData.vehicleId && calculateRentalDuration() && (
+              <div className="mt-8">
+                <ProtectionPlanSelector
+                  selectedPlanId={formData.protectionPlanId}
+                  onSelectPlan={(planId, plan) => {
+                    setFormData({ ...formData, protectionPlanId: planId });
+                    setSelectedProtectionPlan(plan);
+                  }}
+                  rentalDays={calculateRentalDuration()?.days || 1}
+                />
+              </div>
+            )}
+
             {/* Mobile Action Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 lg:hidden">
+            <div className="flex flex-col sm:flex-row gap-3 lg:hidden mt-8">
               <Button onClick={() => setCurrentStep(1)} variant="outline" className="w-full sm:flex-1" size="lg">
                 <ChevronLeft className="mr-2 w-5 h-5" /> Back
               </Button>
@@ -2245,10 +2253,18 @@ const MultiStepBookingWidget = () => {
 
         {/* Step 3: Review & Payment */}
         {currentStep === 3 && <div className="animate-fade-in">
-            <BookingCheckoutStep formData={formData} selectedVehicle={selectedVehicle} extras={extras} rentalDuration={calculateRentalDuration() || {
-            days: 1,
-            formatted: '1 day'
-          }} vehicleTotal={estimatedBooking?.total || 0} onBack={() => setCurrentStep(2)} />
+            <BookingCheckoutStep
+              formData={formData}
+              selectedVehicle={selectedVehicle}
+              extras={extras}
+              rentalDuration={calculateRentalDuration() || {
+                days: 1,
+                formatted: '1 day'
+              }}
+              vehicleTotal={estimatedBooking?.total || 0}
+              selectedProtectionPlan={selectedProtectionPlan}
+              onBack={() => setCurrentStep(2)}
+            />
           </div>}
 
         {/* Close Protection Modal */}
