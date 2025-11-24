@@ -185,12 +185,56 @@ const MultiStepBookingWidget = () => {
       }
     };
 
+    // Handle message from Veriff callback popup (critical for iOS Safari)
+    const handleMessage = async (event: MessageEvent) => {
+      // Security: verify origin
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data?.type === 'VERIFF_COMPLETE') {
+        console.log('📨 Received VERIFF_COMPLETE message from popup');
+        const pendingSessionId = localStorage.getItem('verificationSessionId');
+
+        if (pendingSessionId) {
+          // Retry logic: check status multiple times with increasing delays
+          // This handles webhook processing delays
+          const checkWithRetry = async (attempt: number = 1, maxAttempts: number = 5) => {
+            console.log(`🔄 Checking verification status (attempt ${attempt}/${maxAttempts})...`);
+            const status = await checkVerificationStatus(pendingSessionId);
+
+            if (status?.review_result === 'GREEN') {
+              setVerificationStatus('verified');
+              localStorage.setItem('verificationStatus', 'verified');
+              toast.success("Identity verification successful!");
+              console.log('✅ Verification confirmed via popup message');
+              return true;
+            } else if (status?.review_result === 'RED') {
+              setVerificationStatus('rejected');
+              localStorage.setItem('verificationStatus', 'rejected');
+              toast.error("Identity verification failed.");
+              return true;
+            } else if (attempt < maxAttempts) {
+              // Retry with exponential backoff: 2s, 4s, 6s, 8s
+              const delay = attempt * 2000;
+              setTimeout(() => checkWithRetry(attempt + 1, maxAttempts), delay);
+            } else {
+              console.log('⚠️ Max retry attempts reached, webhook may be delayed');
+            }
+          };
+
+          // Start checking after initial 2s delay
+          setTimeout(() => checkWithRetry(), 2000);
+        }
+      }
+    };
+
     window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('message', handleMessage);
 
     return () => {
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('message', handleMessage);
     };
   }, []);
 

@@ -6,6 +6,12 @@ const VeriffCallback = () => {
   const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
+    // Notify parent window that verification is complete (for iOS Safari)
+    if (window.opener && !window.opener.closed) {
+      console.log('📢 Notifying parent window: verification complete');
+      window.opener.postMessage({ type: 'VERIFF_COMPLETE' }, window.location.origin);
+    }
+
     // Start countdown
     const countdownInterval = setInterval(() => {
       setCountdown((prev) => {
