@@ -74,6 +74,8 @@ const MultiStepBookingWidget = () => {
   const [showCPModal, setShowCPModal] = useState(false);
   const [cpDetails, setCpDetails] = useState<any>(null);
   const cpSubmittedRef = useRef(false); // Track if CP form was successfully submitted
+  const protectionPlanRef = useRef<HTMLDivElement>(null); // Ref for auto-scroll to protection plans
+  const stepContainerRef = useRef<HTMLDivElement>(null); // Ref for scrolling to step content on step change
   const [blockedDates, setBlockedDates] = useState<string[]>([]); // Global blocked dates (vehicle_id is null)
   const [allBlockedDates, setAllBlockedDates] = useState<BlockedDate[]>([]); // All blocked dates including vehicle-specific
   const [existingCustomerId, setExistingCustomerId] = useState<string | null>(null); // Store existing customer ID to prevent duplicates
@@ -172,6 +174,38 @@ const MultiStepBookingWidget = () => {
       }
     }
   }, [sameAsPickup, formData.pickupLocation, locationCoords.pickupLat, locationCoords.pickupLon]);
+
+  // Auto-scroll to protection plans when vehicle is selected
+  useEffect(() => {
+    if (formData.vehicleId && protectionPlanRef.current && currentStep === 2) {
+      // Small delay to ensure the protection plan section is rendered
+      setTimeout(() => {
+        // Gentle scroll - just enough to reveal the protection section
+        const element = protectionPlanRef.current;
+        if (element) {
+          const elementTop = element.getBoundingClientRect().top + window.scrollY;
+          const offset = 250; // Keep vehicle selection visible above
+          window.scrollTo({
+            top: elementTop - offset,
+            behavior: 'smooth'
+          });
+        }
+      }, 300);
+    }
+  }, [formData.vehicleId, currentStep]);
+
+  // Scroll to step container when step changes
+  useEffect(() => {
+    if (stepContainerRef.current) {
+      const element = stepContainerRef.current;
+      const elementTop = element.getBoundingClientRect().top + window.scrollY;
+      const offset = 100; // Keep some space from top
+      window.scrollTo({
+        top: elementTop - offset,
+        behavior: 'smooth'
+      });
+    }
+  }, [currentStep]);
 
   // Auto-calculate distance when both locations are selected or changed
   useEffect(() => {
@@ -1345,7 +1379,7 @@ const MultiStepBookingWidget = () => {
         </div>
       </section>
 
-      <Card className="p-4 md:p-8 bg-card backdrop-blur-sm border-border shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+      <Card ref={stepContainerRef} className="p-4 md:p-8 bg-card backdrop-blur-sm border-border shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
         <div className="space-y-8 bk-steps">
           {/* Enhanced Progress Indicator */}
           <div className="w-full overflow-x-auto py-4">
@@ -2186,7 +2220,7 @@ const MultiStepBookingWidget = () => {
 
             {/* Protection Plan Selection - Show only when vehicle is selected */}
             {formData.vehicleId && calculateRentalDuration() && (
-              <div className="mt-8">
+              <div className="mt-8" ref={protectionPlanRef}>
                 <ProtectionPlanSelector
                   selectedPlanId={formData.protectionPlanId}
                   onSelectPlan={(planId, plan) => {
@@ -2436,15 +2470,14 @@ const MultiStepBookingWidget = () => {
               </Button>
               <Button
                 onClick={handleStep3Continue}
-                disabled={false /* TODO: Re-enable: verificationStatus !== 'verified' */}
+                disabled={verificationStatus !== 'verified'}
                 className="w-full h-12 bg-[#F5B942] hover:bg-[#E9B63E] text-[#0C1A17] font-semibold text-base shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 size="lg"
               >
                 Continue to Review <ChevronRight className="ml-2 w-5 h-5" />
               </Button>
             </div>
-            {/* TODO: Re-enable verification warning */}
-            {false && verificationStatus !== 'verified' && (
+            {verificationStatus !== 'verified' && (
               <p className="text-sm text-destructive text-center mt-2">
                 Please complete identity verification to continue
               </p>

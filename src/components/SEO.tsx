@@ -9,9 +9,9 @@ interface SEOProps {
 }
 
 const SEO = ({ title, description, keywords, schema, canonical }: SEOProps) => {
-  const siteUrl = "https://10055aaf-5ac9-4da5-a157-7c78ce8e9d2c.lovableproject.com";
-  const fullTitle = `${title} | Drive917`;
-  const ogImage = `${siteUrl}/brand-icon-2025.png`;
+  const siteUrl = "https://drive917.com";
+  const fullTitle = `Drive917 | ${title}`;
+  const ogImage = `${siteUrl}/favicon.png`;
 
   return (
     <Helmet>
