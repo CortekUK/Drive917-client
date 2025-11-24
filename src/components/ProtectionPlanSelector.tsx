@@ -146,23 +146,23 @@ const ProtectionPlanSelector = ({ selectedPlanId, onSelectPlan, rentalDays }: Pr
         )}
         onClick={() => onSelectPlan(null, null)}
       >
-        <div className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div className={cn(
-                "w-12 h-12 rounded-lg flex items-center justify-center",
+                "w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center flex-shrink-0",
                 selectedPlanId === null ? "bg-[#C5A572]/20" : "bg-muted"
               )}>
-                <Info className={cn("w-6 h-6", selectedPlanId === null ? "text-[#C5A572]" : "text-muted-foreground")} />
+                <Info className={cn("w-5 h-5 sm:w-6 sm:h-6", selectedPlanId === null ? "text-[#C5A572]" : "text-muted-foreground")} />
               </div>
-              <div>
-                <h4 className="font-semibold text-lg">Decline Protection</h4>
-                <p className="text-sm text-muted-foreground">I'll use my own insurance or accept the risk</p>
+              <div className="min-w-0">
+                <h4 className="font-semibold text-base sm:text-lg">Decline Protection</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground">I'll use my own insurance or accept the risk</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="text-2xl font-bold">$0</div>
+            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pt-2 sm:pt-0 border-t sm:border-0 border-border/50">
+              <div className="sm:text-right">
+                <div className="text-xl sm:text-2xl font-bold">$0</div>
                 <div className="text-xs text-muted-foreground">No additional cost</div>
               </div>
               {selectedPlanId === null && (
@@ -218,40 +218,42 @@ const ProtectionPlanSelector = ({ selectedPlanId, onSelectPlan, rentalDays }: Pr
               />
             )}
 
-            <div className="p-6 space-y-4 relative">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
+            <div className="p-4 md:p-6 space-y-4 relative">
+              {/* Header - Stacks on mobile */}
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex items-start gap-3 sm:gap-4 flex-1">
                   <div
-                    className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: (plan.color_theme || '#60A5FA') + '20' }}
                   >
-                    <TierIcon tier={plan.tier} className="w-8 h-8" style={{ color: plan.color_theme || '#60A5FA' }} />
+                    <TierIcon tier={plan.tier} className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: plan.color_theme || '#60A5FA' }} />
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-display text-xl font-semibold mb-1">{plan.display_name}</h4>
-                    <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-display text-lg sm:text-xl font-semibold mb-1">{plan.display_name}</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-none">{plan.description}</p>
 
                     {/* Deductible Badge */}
                     {plan.deductible_amount === 0 ? (
-                      <Badge variant="default" className="bg-green-600 mb-2">ZERO DEDUCTIBLE</Badge>
+                      <Badge variant="default" className="bg-green-600 text-xs">ZERO DEDUCTIBLE</Badge>
                     ) : (
-                      <Badge variant="secondary" className="mb-2">${plan.deductible_amount.toLocaleString()} Deductible</Badge>
+                      <Badge variant="secondary" className="text-xs">${plan.deductible_amount.toLocaleString()} Deductible</Badge>
                     )}
                   </div>
                 </div>
 
-                {/* Pricing */}
-                <div className="text-right flex-shrink-0">
-                  <div className="text-3xl font-bold" style={{ color: plan.color_theme || '#60A5FA' }}>
-                    ${cost.total.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">{cost.label} × {rentalDays} days</div>
-                  <div className="text-xs font-medium text-green-600 mt-2">
-                    Save {savings.percent}% vs rental counter
+                {/* Pricing - Right side on desktop, inline on mobile */}
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-0 pt-2 sm:pt-0 border-t sm:border-0 border-border/50">
+                  <div className="flex flex-col sm:items-end">
+                    <div className="text-2xl sm:text-3xl font-bold" style={{ color: plan.color_theme || '#60A5FA' }}>
+                      ${cost.total.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{cost.label} × {rentalDays} days</div>
+                    <div className="text-xs font-medium text-green-600 mt-1">
+                      Save {savings.percent}% vs rental counter
+                    </div>
                   </div>
                   {isSelected && (
-                    <div className="w-8 h-8 bg-[#C5A572] rounded-full flex items-center justify-center mt-3 ml-auto">
+                    <div className="w-8 h-8 bg-[#C5A572] rounded-full flex items-center justify-center sm:mt-3">
                       <Check className="w-5 h-5 text-black" />
                     </div>
                   )}
@@ -259,9 +261,9 @@ const ProtectionPlanSelector = ({ selectedPlanId, onSelectPlan, rentalDays }: Pr
               </div>
 
               {/* Key Features (Always Visible) */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {plan.features.slice(0, 4).map((feature: string, index: number) => (
-                  <div key={index} className="flex items-start gap-2 text-sm">
+                  <div key={index} className="flex items-start gap-2 text-xs sm:text-sm">
                     <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                     <span>{feature}</span>
                   </div>

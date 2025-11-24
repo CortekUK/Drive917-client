@@ -60,7 +60,7 @@ interface BlockedDate {
   reason?: string | null;
 }
 const MultiStepBookingWidget = () => {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(3);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [extras, setExtras] = useState<PricingExtra[]>([]);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
@@ -2344,38 +2344,39 @@ const MultiStepBookingWidget = () => {
               </div>
 
               {/* Identity Verification Section */}
-              <div className="border-t border-border/50 pt-8">
-                <h4 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <div className="border-t border-border/50 pt-6 sm:pt-8">
+                <h4 className="text-base sm:text-lg font-semibold mb-2 flex items-center gap-2">
                   Identity Verification <span className="text-destructive">*</span>
                 </h4>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-4">
                   <strong>Required:</strong> To ensure security and compliance, all customers must complete identity verification before proceeding with their rental.
                 </p>
 
                 {verificationStatus === 'init' && (
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 sm:p-4">
+                    <div className="flex items-start gap-2 sm:gap-3">
                       <AlertCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium mb-2 text-destructive">Verification Required</p>
-                        <p className="text-sm text-muted-foreground mb-4">
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-4">
                           <strong>You must verify your identity to continue.</strong> Please fill in your details above, then click the button below to start the verification process.
                         </p>
                         <Button
                           onClick={handleStartVerification}
                           disabled={isVerifying || !formData.customerName || !formData.customerEmail || !formData.customerPhone}
                           variant="outline"
-                          className="border-accent text-accent hover:bg-accent hover:text-white"
+                          className="border-accent text-accent hover:bg-accent hover:text-white w-full sm:w-auto text-sm"
+                          size="sm"
                         >
                           {isVerifying ? (
                             <>
                               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                              Starting Verification...
+                              <span className="truncate">Starting...</span>
                             </>
                           ) : (
                             <>
-                              <FileCheck className="w-4 h-4 mr-2" />
-                              Start Identity Verification
+                              <FileCheck className="w-4 h-4 mr-2 flex-shrink-0" />
+                              <span>Start Identity Verification</span>
                             </>
                           )}
                         </Button>
@@ -2385,12 +2386,12 @@ const MultiStepBookingWidget = () => {
                 )}
 
                 {verificationStatus === 'pending' && (
-                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 sm:p-4">
+                    <div className="flex items-start gap-2 sm:gap-3">
                       <Clock className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium mb-2 text-yellow-600 dark:text-yellow-500">Verification Pending</p>
-                        <p className="text-sm text-muted-foreground mb-2">
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2">
                           Your identity verification is in progress. Please complete the verification in the popup window.
                         </p>
                         <p className="text-xs text-muted-foreground">
@@ -2402,13 +2403,13 @@ const MultiStepBookingWidget = () => {
                 )}
 
                 {verificationStatus === 'verified' && (
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 flex-1">
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex items-start gap-2 sm:gap-3 flex-1">
                         <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium mb-1 text-green-600 dark:text-green-500">Verified</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             Your identity has been successfully verified. You can proceed with your booking.
                           </p>
                         </div>
@@ -2417,7 +2418,7 @@ const MultiStepBookingWidget = () => {
                         onClick={handleClearVerification}
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0 self-start sm:self-auto ml-7 sm:ml-0"
                         title="Clear verification to verify again"
                       >
                         <X className="w-4 h-4 mr-1" />
@@ -2428,22 +2429,22 @@ const MultiStepBookingWidget = () => {
                 )}
 
                 {verificationStatus === 'rejected' && (
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 sm:p-4">
+                    <div className="flex items-start gap-2 sm:gap-3">
                       <X className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium mb-2 text-destructive">Verification Failed</p>
-                        <p className="text-sm text-muted-foreground mb-3">
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-3">
                           Your identity verification was not successful. Please try again or contact support.
                         </p>
                         <Button
                           onClick={handleStartVerification}
                           disabled={isVerifying}
                           variant="outline"
-                          className="border-accent text-accent hover:bg-accent hover:text-white"
+                          className="border-accent text-accent hover:bg-accent hover:text-white w-full sm:w-auto"
                           size="sm"
                         >
-                          <FileCheck className="w-4 h-4 mr-2" />
+                          <FileCheck className="w-4 h-4 mr-2 flex-shrink-0" />
                           Retry Verification
                         </Button>
                       </div>
@@ -2459,26 +2460,28 @@ const MultiStepBookingWidget = () => {
             </div>
 
             {/* Navigation Buttons */}
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button
                 onClick={() => setCurrentStep(2)}
                 variant="outline"
-                className="w-full h-12 border-[#C5A572] text-[#C5A572] hover:bg-[#C5A572]/10 font-semibold text-base"
+                className="w-full sm:flex-1 h-11 sm:h-12 border-[#C5A572] text-[#C5A572] hover:bg-[#C5A572]/10 font-semibold text-sm sm:text-base"
                 size="lg"
               >
-                <ChevronLeft className="mr-2 w-5 h-5" /> Back
+                <ChevronLeft className="mr-2 w-4 h-4 sm:w-5 sm:h-5" /> Back
               </Button>
               <Button
                 onClick={handleStep3Continue}
                 disabled={verificationStatus !== 'verified'}
-                className="w-full h-12 bg-[#F5B942] hover:bg-[#E9B63E] text-[#0C1A17] font-semibold text-base shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:flex-1 h-11 sm:h-12 bg-[#F5B942] hover:bg-[#E9B63E] text-[#0C1A17] font-semibold text-sm sm:text-base shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 size="lg"
               >
-                Continue to Review <ChevronRight className="ml-2 w-5 h-5" />
+                <span className="sm:hidden">Continue</span>
+                <span className="hidden sm:inline">Continue to Review</span>
+                <ChevronRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
             </div>
             {verificationStatus !== 'verified' && (
-              <p className="text-sm text-destructive text-center mt-2">
+              <p className="text-xs sm:text-sm text-destructive text-center mt-2">
                 Please complete identity verification to continue
               </p>
             )}
