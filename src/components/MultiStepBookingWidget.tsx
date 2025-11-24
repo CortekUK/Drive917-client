@@ -335,6 +335,10 @@ const MultiStepBookingWidget = () => {
     }
 
     setIsVerifying(true);
+
+    // Open window BEFORE async call to avoid Safari popup blocker
+    const veriffWindow = window.open('about:blank', '_blank', 'width=800,height=600');
+
     try {
       const { data, error } = await supabase.functions.invoke('create-veriff-session', {
         body: {
@@ -366,8 +370,10 @@ const MultiStepBookingWidget = () => {
         localStorage.setItem('verificationToken', data.sessionToken);
         localStorage.setItem('verificationStatus', 'pending');
 
-        // Open Veriff verification in new window
-        window.open(data.sessionUrl, '_blank', 'width=800,height=600');
+        // Navigate the already-opened window to Veriff URL
+        if (veriffWindow) {
+          veriffWindow.location.href = data.sessionUrl;
+        }
 
         toast.success("Verification window opened. Please complete the identity verification.");
 
@@ -418,6 +424,11 @@ const MultiStepBookingWidget = () => {
     } catch (error: any) {
       console.error("Verification error:", error);
       toast.error(error.message || "Failed to start verification");
+
+      // Close the blank window if API call failed
+      if (veriffWindow) {
+        veriffWindow.close();
+      }
 
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'verification_failed', {
