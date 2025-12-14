@@ -1,16 +1,19 @@
-import { Link, useLocation } from "react-router-dom";
-import { Menu, Phone, X } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { useSiteSettings } from "@/hooks/useSiteSettings";
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Menu, Phone, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const location = useLocation();
+  const pathname = usePathname();
   const { settings } = useSiteSettings();
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => pathname === path;
 
   // Format phone number for tel: link (remove spaces and special chars except +)
   const phoneLink = settings.phone.replace(/[^\d+]/g, '');
@@ -23,17 +26,17 @@ const Navigation = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const navLinks = [
-    { path: "/", label: "Home" },
-    { path: "/fleet", label: "Fleet & Pricing" },
-    { path: "/promotions", label: "Promotions" },
-    { path: "/about", label: "About" },
-    { path: "/testimonials", label: "Reviews" },
-    { path: "/contact", label: "Contact" }
+    { path: '/', label: 'Home' },
+    { path: '/fleet', label: 'Fleet & Pricing' },
+    { path: '/promotions', label: 'Promotions' },
+    { path: '/about', label: 'About' },
+    { path: '/testimonials', label: 'Reviews' },
+    { path: '/contact', label: 'Contact' }
   ];
 
   return (
@@ -44,11 +47,11 @@ const Navigation = () => {
       <div className="container mx-auto px-2 lg:px-4">
         <div className="flex items-center w-full justify-between gap-2 lg:gap-4 xl:gap-8">
           {/* Logo/Branding - Left */}
-          <Link to="/" className="flex items-center gap-2 lg:gap-3 flex-shrink-0 group">
+          <Link href="/" className="flex items-center gap-2 lg:gap-3 flex-shrink-0 group">
             {settings.logo_url ? (
               <img
                 src={settings.logo_url}
-                alt={settings.logo_alt || "Drive917"}
+                alt={settings.logo_alt || 'Drive917'}
                 className="h-10 lg:h-12 object-contain"
               />
             ) : (
@@ -57,7 +60,7 @@ const Navigation = () => {
                   className="text-base lg:text-lg xl:text-2xl font-luxury font-semibold leading-tight whitespace-nowrap tracking-wide"
                   style={{ color: 'hsl(var(--nav-foreground))' }}
                 >
-                  {settings.company_name || "Drive917"}
+                  {settings.company_name || 'Drive917'}
                 </span>
                 <div className="h-0.5 w-full bg-accent/60 mt-0.5 lg:mt-1" />
               </div>
@@ -69,8 +72,8 @@ const Navigation = () => {
             {navLinks.map(link => (
               <Link
                 key={link.path}
-                to={link.path}
-                className={`text-sm font-medium transition-colors hover:text-accent px-2 whitespace-nowrap ${isActive(link.path) ? "text-accent" : ""}`}
+                href={link.path}
+                className={`text-sm font-medium transition-colors hover:text-accent px-2 whitespace-nowrap ${isActive(link.path) ? 'text-accent' : ''}`}
                 style={!isActive(link.path) ? { color: 'hsl(var(--nav-foreground) / 0.8)' } : undefined}
               >
                 {link.label}
@@ -111,9 +114,9 @@ const Navigation = () => {
             {navLinks.map(link => (
               <Link
                 key={link.path}
-                to={link.path}
+                href={link.path}
                 onClick={() => setIsOpen(false)}
-                className={`block py-2.5 text-sm font-medium transition-colors pl-0 ${isActive(link.path) ? "text-accent" : ""}`}
+                className={`block py-2.5 text-sm font-medium transition-colors pl-0 ${isActive(link.path) ? 'text-accent' : ''}`}
                 style={!isActive(link.path) ? { color: 'hsl(var(--nav-foreground) / 0.8)' } : undefined}
               >
                 {link.label}

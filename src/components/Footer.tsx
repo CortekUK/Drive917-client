@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+'use client';
+
+import Link from "next/link";
 import { Phone, Mail, MapPin } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
@@ -49,17 +51,17 @@ const Footer = () => {
             <div className="w-12 h-[2px] mb-4" style={{ backgroundColor: 'hsl(var(--accent))' }}></div>
             <ul className="space-y-2">
               <li>
-                <Link to="/fleet" className="text-sm footer-link">
+                <Link href="/fleet" className="text-sm footer-link">
                   Fleet & Pricing
                 </Link>
               </li>
               <li>
-                <Link to="/#booking" className="text-sm footer-link">
+                <Link href="/#booking" className="text-sm footer-link">
                   Book a Vehicle
                 </Link>
               </li>
               <li>
-                <Link to="/promotions" className="text-sm footer-link">
+                <Link href="/promotions" className="text-sm footer-link">
                   Promotions
                 </Link>
               </li>
@@ -71,17 +73,17 @@ const Footer = () => {
             <div className="w-12 h-[2px] mb-4" style={{ backgroundColor: 'hsl(var(--accent))' }}></div>
             <ul className="space-y-2">
               <li>
-                <Link to="/about" className="text-sm footer-link">
+                <Link href="/about" className="text-sm footer-link">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link to="/testimonials" className="text-sm footer-link">
+                <Link href="/testimonials" className="text-sm footer-link">
                   Testimonials
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="text-sm footer-link">
+                <Link href="/contact" className="text-sm footer-link">
                   Contact
                 </Link>
               </li>
@@ -124,10 +126,10 @@ const Footer = () => {
             {settings.copyright_text}
           </p>
           <div className="flex gap-6">
-            <Link to="/privacy" className="text-sm footer-link-muted">
+            <Link href="/privacy" className="text-sm footer-link-muted">
               Privacy Policy
             </Link>
-            <Link to="/terms" className="text-sm footer-link-muted">
+            <Link href="/terms" className="text-sm footer-link-muted">
               Terms of Service
             </Link>
           </div>

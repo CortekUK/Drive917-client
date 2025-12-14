@@ -1,5 +1,7 @@
+'use client'
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,7 +35,7 @@ export default function BookingCheckoutStep({
   selectedProtectionPlan,
   onBack
 }: BookingCheckoutStepProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 

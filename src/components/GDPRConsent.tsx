@@ -1,9 +1,11 @@
+'use client';
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 const GDPRConsent = () => {
   const [showBanner, setShowBanner] = useState(false);
@@ -58,9 +60,9 @@ const GDPRConsent = () => {
       <Card className="max-w-4xl mx-auto p-6 shadow-metal">
         <h3 className="text-xl font-display font-bold mb-3">Cookie Consent</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
+          We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic.
           By clicking "Accept All", you consent to our use of cookies. Read our{" "}
-          <Link to="/privacy" className="text-primary underline">Privacy Policy</Link> for more information.
+          <Link href="/privacy" className="text-primary underline">Privacy Policy</Link> for more information.
         </p>
 
         <div className="space-y-3 mb-4">

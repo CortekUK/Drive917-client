@@ -1,0 +1,50 @@
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as Sonner } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { QueryClientProvider } from '@/components/QueryClientProvider';
+import { ThemeProvider } from 'next-themes';
+import { ThemeInitializer } from '@/components/ThemeInitializer';
+import GDPRConsent from '@/components/GDPRConsent';
+import ScrollToTopOnNavigate from '@/components/ScrollToTopOnNavigate';
+
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Drive917 - Premium Car Rentals',
+  description: 'Premium luxury car rentals with exceptional service',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <QueryClientProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={true}
+            storageKey="vite-ui-theme"
+            disableTransitionOnChange
+          >
+            <ThemeInitializer>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <ScrollToTopOnNavigate />
+                <GDPRConsent />
+                {children}
+              </TooltipProvider>
+            </ThemeInitializer>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </body>
+    </html>
+  );
+}
