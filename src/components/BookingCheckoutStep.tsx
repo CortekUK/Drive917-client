@@ -689,18 +689,21 @@ export default function BookingCheckoutStep({
           </Card>
 
           {/* Terms & Conditions */}
-          <Card className="p-6">
-            <div className="flex items-start gap-2">
+          <Card
+            className="p-6 cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => setAgreeTerms(!agreeTerms)}
+          >
+            <div className="flex items-start gap-3">
               <Checkbox
                 checked={agreeTerms}
                 onCheckedChange={(checked) => setAgreeTerms(checked as boolean)}
-                className="mt-1"
+                className="mt-0.5"
+                onClick={(e) => e.stopPropagation()}
               />
               <Label className="text-sm leading-relaxed cursor-pointer">
                 By confirming, you agree to Drive 917's{" "}
-                <a href="/terms" target="_blank" className="text-accent underline">Rental Agreement</a>,{" "}
-                <a href="/terms" target="_blank" className="text-accent underline">Terms of Service</a>, and{" "}
-                <a href="/privacy" target="_blank" className="text-accent underline">Privacy Policy</a>.
+                <a href="/terms" target="_blank" className="text-accent underline" onClick={(e) => e.stopPropagation()}>Terms of Service</a> and{" "}
+                <a href="/privacy" target="_blank" className="text-accent underline" onClick={(e) => e.stopPropagation()}>Privacy Policy</a>.
               </Label>
             </div>
           </Card>
@@ -782,7 +785,7 @@ export default function BookingCheckoutStep({
               <Button
                 onClick={onBack}
                 variant="outline"
-                className="w-full"
+                className="w-full border-primary text-primary hover:bg-primary/10"
                 size="lg"
                 disabled={isProcessing}
               >

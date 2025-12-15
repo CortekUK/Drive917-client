@@ -212,7 +212,7 @@ export default function Booking() {
         title="Rental Booking — Drive 917"
         description="Book your luxury vehicle rental with Drive 917. Choose pickup and return details for premium cars in Los Angeles."
         keywords="luxury car rental booking, Los Angeles car rental, premium vehicle booking"
-        canonical={`${window.location.origin}/booking`}
+        canonical={typeof window !== 'undefined' ? `${window.location.origin}/booking` : 'https://drive917.com/booking'}
       />
       <Navigation />
 

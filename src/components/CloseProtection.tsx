@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Shield, Award, Users, Globe, CheckCircle, Quote, BadgeCheck, Phone } from "lucide-react";
 import protectionHero from "@/assets/service-protection.jpg";
 import CloseProtectionEnquiryForm from "@/components/CloseProtectionEnquiryForm";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PortfolioCarousel } from "@/components/portfolio/PortfolioCarousel";
 
 const CloseProtection = () => {
+  const { settings } = useSiteSettings();
+  const phoneLink = settings.phone.replace(/[^d+]/g, "");
   const features = [
     {
       icon: Shield,
@@ -80,8 +83,8 @@ const CloseProtection = () => {
             onClick: scrollToForm
           }}
           secondaryCTA={{
-            text: "Call 0800 123 4567",
-            href: "tel:08001234567",
+            text: `Call ${settings.phone_display}`,
+            href: `tel:${phoneLink}`,
             icon: <Phone className="w-5 h-5" />
           }}
           trustLine={["Fully Licenced", "Global Coverage", "24/7 Availability"]}

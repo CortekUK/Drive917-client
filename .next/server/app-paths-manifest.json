@@ -1,3 +1,20 @@
 {
-  "/page": "app/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/booking-cancelled/page": "app/booking-cancelled/page.js",
+  "/about/page": "app/about/page.js",
+  "/booking/page": "app/booking/page.js",
+  "/booking-pending/page": "app/booking-pending/page.js",
+  "/booking-success/page": "app/booking-success/page.js",
+  "/booking/checkout/page": "app/booking/checkout/page.js",
+  "/booking/vehicles/page": "app/booking/vehicles/page.js",
+  "/faq/page": "app/faq/page.js",
+  "/contact/page": "app/contact/page.js",
+  "/fleet/[id]/page": "app/fleet/[id]/page.js",
+  "/page": "app/page.js",
+  "/privacy/page": "app/privacy/page.js",
+  "/fleet/page": "app/fleet/page.js",
+  "/promotions/page": "app/promotions/page.js",
+  "/terms/page": "app/terms/page.js",
+  "/testimonials/page": "app/testimonials/page.js",
+  "/veriff-callback/page": "app/veriff-callback/page.js"
 }

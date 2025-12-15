@@ -1,0 +1,20 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/booking-cancelled/page": "/booking-cancelled",
+  "/about/page": "/about",
+  "/booking/page": "/booking",
+  "/booking-pending/page": "/booking-pending",
+  "/booking-success/page": "/booking-success",
+  "/booking/checkout/page": "/booking/checkout",
+  "/booking/vehicles/page": "/booking/vehicles",
+  "/faq/page": "/faq",
+  "/contact/page": "/contact",
+  "/fleet/[id]/page": "/fleet/[id]",
+  "/page": "/",
+  "/privacy/page": "/privacy",
+  "/fleet/page": "/fleet",
+  "/promotions/page": "/promotions",
+  "/terms/page": "/terms",
+  "/testimonials/page": "/testimonials",
+  "/veriff-callback/page": "/veriff-callback"
+}

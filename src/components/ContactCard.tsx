@@ -2,11 +2,16 @@ import { Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageContent, defaultHomeContent, mergeWithDefaults } from "@/hooks/usePageContent";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const ContactCard = () => {
   // CMS Content
   const { data: rawContent } = usePageContent("home");
   const content = mergeWithDefaults(rawContent, defaultHomeContent);
+
+  // Site settings for phone/email
+  const { settings } = useSiteSettings();
+  const phoneLink = settings.phone.replace(/[^\d+]/g, "");
 
   return (
     <section className="py-16 bg-background">
@@ -23,7 +28,7 @@ const ContactCard = () => {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 shrink-0">
-                <a href={`tel:${content.contact_card?.phone_number || "+19725156635"}`}>
+                <a href={`tel:${phoneLink}`}>
                   <Button
                     size="lg"
                     className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-6 shadow-md hover:shadow-lg transition-all"
@@ -32,7 +37,7 @@ const ContactCard = () => {
                     {content.contact_card?.call_button_text || "Call Now"}
                   </Button>
                 </a>
-                <a href={`mailto:${content.contact_card?.email || "info@drive917.com"}`}>
+                <a href={`mailto:${settings.email}`}>
                   <Button
                     size="lg"
                     variant="outline"

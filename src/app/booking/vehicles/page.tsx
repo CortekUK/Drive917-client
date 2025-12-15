@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ interface Vehicle {
   vehicle_photos?: VehiclePhoto[];
 }
 
-const BookingVehicles = () => {
+const BookingVehiclesContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -268,6 +268,21 @@ const BookingVehicles = () => {
 
       <Footer />
     </div>
+  );
+};
+
+const BookingVehicles = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <BookingVehiclesContent />
+    </Suspense>
   );
 };
 

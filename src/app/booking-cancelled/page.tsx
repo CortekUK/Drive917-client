@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
@@ -9,7 +9,7 @@ import { XCircle, ArrowLeft, MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-const BookingCancelled = () => {
+const BookingCancelledContent = () => {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const rentalId = searchParams?.get("rental_id");
@@ -103,13 +103,13 @@ const BookingCancelled = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/">
+                  <Link href="/">
                     <Button className="gradient-accent hover-lift w-full sm:w-auto">
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Try Again
                     </Button>
                   </Link>
-                  <Link to="/contact">
+                  <Link href="/contact">
                     <Button variant="outline" className="w-full sm:w-auto">
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Contact Support
@@ -123,6 +123,21 @@ const BookingCancelled = () => {
       </main>
       <Footer />
     </>
+  );
+};
+
+const BookingCancelled = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <BookingCancelledContent />
+    </Suspense>
   );
 };
 

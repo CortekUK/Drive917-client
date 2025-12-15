@@ -94,12 +94,17 @@ const MultiStepBookingWidget = () => {
   const [sortBy, setSortBy] = useState("recommended");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [originalPriceRange, setOriginalPriceRange] = useState<[number, number]>([0, 1000]); // Store original dynamic range
+  const [originalDailyRange, setOriginalDailyRange] = useState<[number, number]>([0, 500]);
+  const [originalWeeklyRange, setOriginalWeeklyRange] = useState<[number, number]>([0, 2000]);
+  const [originalMonthlyRange, setOriginalMonthlyRange] = useState<[number, number]>([0, 5000]); // Store original dynamic range
   const [filters, setFilters] = useState({
     transmission: [] as string[],
     fuel: [] as string[],
     seats: [2, 7] as [number, number],
-    priceRange: [0, 1000] as [number, number]
+    dailyPriceRange: [0, 500] as [number, number],
+    weeklyPriceRange: [0, 2000] as [number, number],
+    monthlyPriceRange: [0, 5000] as [number, number],
+    colors: [] as string[]
   });
   const searchDebounceTimer = useRef<NodeJS.Timeout>();
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
@@ -346,15 +351,25 @@ const MultiStepBookingWidget = () => {
         .map(v => v.monthly_rent || v.daily_rent || 0)
         .filter(p => p > 0);
 
-      if (prices.length > 0) {
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-        const dynamicRange: [number, number] = [minPrice, maxPrice];
-        setOriginalPriceRange(dynamicRange); // Store original range for reset
-        setFilters(prev => ({
-          ...prev,
-          priceRange: dynamicRange
-        }));
+      // Calculate separate ranges for daily, weekly, monthly
+      const dailyPrices = vehiclesData.map(v => v.daily_rent).filter((p): p is number => p != null && p > 0);
+      const weeklyPrices = vehiclesData.map(v => v.weekly_rent).filter((p): p is number => p != null && p > 0);
+      const monthlyPrices = vehiclesData.map(v => v.monthly_rent).filter((p): p is number => p != null && p > 0);
+
+      if (dailyPrices.length > 0) {
+        const dailyRange: [number, number] = [Math.min(...dailyPrices), Math.max(...dailyPrices)];
+        setOriginalDailyRange(dailyRange);
+        setFilters(prev => ({ ...prev, dailyPriceRange: dailyRange }));
+      }
+      if (weeklyPrices.length > 0) {
+        const weeklyRange: [number, number] = [Math.min(...weeklyPrices), Math.max(...weeklyPrices)];
+        setOriginalWeeklyRange(weeklyRange);
+        setFilters(prev => ({ ...prev, weeklyPriceRange: weeklyRange }));
+      }
+      if (monthlyPrices.length > 0) {
+        const monthlyRange: [number, number] = [Math.min(...monthlyPrices), Math.max(...monthlyPrices)];
+        setOriginalMonthlyRange(monthlyRange);
+        setFilters(prev => ({ ...prev, monthlyPriceRange: monthlyRange }));
       }
     }
     if (extrasData) setExtras(extrasData);
@@ -801,6 +816,33 @@ const MultiStepBookingWidget = () => {
     };
   };
 
+  // Calculate protection plan cost
+  const calculateProtectionPlanCost = () => {
+    if (!selectedProtectionPlan) return 0;
+    const days = calculateRentalDuration()?.days || 0;
+    if (days >= 30 && selectedProtectionPlan.price_per_month) {
+      const months = Math.ceil(days / 30);
+      return selectedProtectionPlan.price_per_month * months;
+    } else if (days >= 7 && selectedProtectionPlan.price_per_week) {
+      const weeks = Math.ceil(days / 7);
+      return selectedProtectionPlan.price_per_week * weeks;
+    } else {
+      return (selectedProtectionPlan.price_per_day || 0) * days;
+    }
+  };
+
+// Get prominent price based on rental duration
+  const getProminentPrice = (vehicle: Vehicle) => {    const duration = calculateRentalDuration();    const days = duration?.days || 0;    const d = vehicle.daily_rent || 0, w = vehicle.weekly_rent || 0, m = vehicle.monthly_rent || 0;    const sec = (a: string[]) => a.filter(Boolean).join(' • ');    if (!duration || days === 0) return { price: m || d, label: '/ month', secondary: sec([d?'$'+d+' / day':'', w?'$'+w+' / week':'']) };    if (days < 7) return { price: d || m, label: '/ day', secondary: sec([w?'$'+w+' / week':'', m?'$'+m+' / month':'']) };    if (days < 28) return { price: w || d, label: '/ week', secondary: sec([d?'$'+d+' / day':'', m?'$'+m+' / month':'']) };    return { price: m || w || d, label: '/ month', secondary: sec([d?'$'+d+' / day':'', w?'$'+w+' / week':'']) };  }
+
+  // Get unique colors from vehicles
+  const getUniqueColors = () => {
+    const colors = vehicles.map(v => v.colour).filter(Boolean) as string[];
+    return [...new Set(colors)].sort();
+  };
+  const uniqueColors = getUniqueColors();
+
+;
+
   // Check if a vehicle is blocked during the selected rental period
   const isVehicleBlockedForPeriod = (vehicleId: string): { blocked: boolean; blockedRange?: { start: string; end: string } } => {
     if (!formData.pickupDate || !formData.dropoffDate) {
@@ -878,11 +920,23 @@ const MultiStepBookingWidget = () => {
     // Seats filter (skip for portal - no capacity field)
     // Portal vehicles don't have capacity info, so this filter is disabled
 
-    // Price range filter - use monthly_rent or daily_rent
+    // Price range filters - check all three ranges
     filtered = filtered.filter(v => {
-      const price = v.monthly_rent || v.daily_rent || 0;
-      return price >= filters.priceRange[0] && price <= filters.priceRange[1];
+      const daily = v.daily_rent || 0;
+      const weekly = v.weekly_rent || 0;
+      const monthly = v.monthly_rent || 0;
+
+      const dailyOk = daily >= filters.dailyPriceRange[0] && daily <= filters.dailyPriceRange[1];
+      const weeklyOk = weekly >= filters.weeklyPriceRange[0] && weekly <= filters.weeklyPriceRange[1];
+      const monthlyOk = monthly >= filters.monthlyPriceRange[0] && monthly <= filters.monthlyPriceRange[1];
+
+      return dailyOk && weeklyOk && monthlyOk;
     });
+
+    // Color filter
+    if (filters.colors && (filters.colors || []).length > 0) {
+      filtered = filtered.filter(v => v.colour && (filters.colors || []).includes(v.colour));
+    }
 
     // Sort
     switch (sortBy) {
@@ -951,12 +1005,15 @@ const MultiStepBookingWidget = () => {
       transmission: [],
       fuel: [],
       seats: [2, 7],
-      priceRange: originalPriceRange // Use stored original range
+      dailyPriceRange: originalDailyRange,
+      weeklyPriceRange: originalWeeklyRange,
+      monthlyPriceRange: originalMonthlyRange,
+      colors: []
     });
     setSortBy("recommended");
   };
   // Portal vehicles don't have transmission/fuel data, so we exclude those filters
-  const hasActiveFilters = searchTerm || selectedCategories.length > 0 || sortBy !== "recommended";
+  const hasActiveFilters = searchTerm || selectedCategories.length > 0 || sortBy !== "recommended" || (filters.colors || []).length > 0;
   const selectedVehicle = vehicles.find(v => v.id === formData.vehicleId);
   const estimatedBooking = selectedVehicle ? calculateEstimatedTotal(selectedVehicle) : null;
   const priceBreakdown = calculatePriceBreakdown();
@@ -1660,10 +1717,10 @@ const MultiStepBookingWidget = () => {
                 </div>
               </div>
 
-              {/* Row 3: Driver Age & Promo Code */}
+              {/* Row 3: Driver's Age & Promo Code */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="driverAge" className="font-medium">Driver Age *</Label>
+                  <Label htmlFor="driverAge" className="font-medium">Driver's Age *</Label>
                   <Select value={formData.driverAge} onValueChange={value => {
                   setFormData({
                     ...formData,
@@ -1710,14 +1767,14 @@ const MultiStepBookingWidget = () => {
         {/* Step 2: Vehicle Selection */}
         {currentStep === 2 && <div className="space-y-6 animate-fade-in">
             {/* Back Button */}
-            <Button onClick={() => setCurrentStep(1)} variant="ghost" className="text-muted-foreground hover:text-foreground -ml-2">
+            <Button onClick={() => setCurrentStep(1)} variant="ghost" className="text-primary hover:text-primary/80 -ml-2">
               <ChevronLeft className="mr-1 w-5 h-5" /> Back to Trip Details
             </Button>
 
             {/* Header */}
             <div className="space-y-3">
               <h3 className="text-3xl md:text-4xl font-display font-semibold text-foreground">
-                Select Your Vehicle
+                Select
               </h3>
               <p className="text-muted-foreground text-base">
                 Choose from our curated fleet of premium rentals.
@@ -1730,19 +1787,19 @@ const MultiStepBookingWidget = () => {
                   <span>•</span>
                   <span>{formData.pickupLocation.split(',')[0] || 'Selected location'}</span>
                   <span>•</span>
-                  <span>{calculateRentalDuration()?.days || 0} days</span>
+                  <span>{calculateRentalDuration()?.days || 0} {(calculateRentalDuration()?.days || 0) === 1 ? "day" : "days"}</span>
                 </div>}
             </div>
 
             {/* Toolbar */}
-            <Card className="p-4 bg-card/90 backdrop-blur-sm border-primary/15 sticky top-20 z-10 shadow-lg">
+            <Card className="p-4 bg-card/90 backdrop-blur-sm border-primary/15 shadow-lg">
               <div className="flex flex-col gap-4">
                 {/* Top Row: Search, Sort, View Toggle */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   {/* Search */}
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input value={searchTerm} onChange={e => handleSearchChange(e.target.value)} placeholder="Search model or brand…" className="pl-10 h-10 bg-background focus-visible:ring-primary" aria-label="Search vehicles" />
+                    <Input value={searchTerm} onChange={e => handleSearchChange(e.target.value)} placeholder="Search cars…" className="pl-10 h-10 bg-background focus-visible:ring-primary" aria-label="Search vehicles" />
                   </div>
 
                   {/* Sort */}
@@ -1772,8 +1829,8 @@ const MultiStepBookingWidget = () => {
                       <Button variant="outline" className="h-10 gap-2 border-primary/30 hover:bg-primary/10">
                         <SlidersHorizontal className="w-4 h-4" />
                         Filters
-                        {(filters.transmission.length > 0 || filters.fuel.length > 0) && <Badge className="ml-1 h-5 w-5 rounded-full p-0 bg-primary text-primary-foreground">
-                            {filters.transmission.length + filters.fuel.length}
+                        {(filters.colors || []).length > 0 && <Badge className="ml-1 h-5 w-5 rounded-full p-0 bg-primary text-primary-foreground">
+                            {(filters.colors || []).length}
                           </Badge>}
                       </Button>
                     </PopoverTrigger>
@@ -1786,7 +1843,10 @@ const MultiStepBookingWidget = () => {
                             transmission: [],
                             fuel: [],
                             seats: [2, 7],
-                            priceRange: originalPriceRange // Use stored original range
+                            dailyPriceRange: originalDailyRange,
+                            weeklyPriceRange: originalWeeklyRange,
+                            monthlyPriceRange: originalMonthlyRange,
+                            colors: []
                           });
                         }}>
                             Reset
@@ -1818,25 +1878,79 @@ const MultiStepBookingWidget = () => {
                           </div>
                         </div> */}
 
-                        {/* Seats - Hidden for portal (no capacity data in portal DB) */}
-                        {/* <div className="space-y-2">
-                          <Label className="text-sm font-medium">Seats: {filters.seats[0]} - {filters.seats[1]}+</Label>
-                          <Slider value={filters.seats} onValueChange={value => setFilters(prev => ({
-                          ...prev,
-                          seats: value as [number, number]
-                        }))} min={2} max={7} step={1} className="py-2" />
-                        </div> */}
-
-                        {/* Price Range */}
+                        {/* Daily Price Range */}
                         <div className="space-y-2">
                           <Label className="text-sm font-medium">
-                            Price per month: ${filters.priceRange[0]} - ${filters.priceRange[1]}
+                            Daily: ${filters.dailyPriceRange[0]} - ${filters.dailyPriceRange[1]}
                           </Label>
-                          <Slider value={filters.priceRange} onValueChange={value => setFilters(prev => ({
-                          ...prev,
-                          priceRange: value as [number, number]
-                        }))} min={originalPriceRange[0]} max={originalPriceRange[1]} step={10} className="py-2" />
+                          <Slider
+                            value={filters.dailyPriceRange}
+                            onValueChange={value => setFilters(prev => ({ ...prev, dailyPriceRange: value as [number, number] }))}
+                            min={originalDailyRange[0]}
+                            max={originalDailyRange[1]}
+                            step={5}
+                            className="py-2"
+                          />
                         </div>
+
+                        {/* Weekly Price Range */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Weekly: ${filters.weeklyPriceRange[0]} - ${filters.weeklyPriceRange[1]}
+                          </Label>
+                          <Slider
+                            value={filters.weeklyPriceRange}
+                            onValueChange={value => setFilters(prev => ({ ...prev, weeklyPriceRange: value as [number, number] }))}
+                            min={originalWeeklyRange[0]}
+                            max={originalWeeklyRange[1]}
+                            step={10}
+                            className="py-2"
+                          />
+                        </div>
+
+                        {/* Monthly Price Range */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Monthly: ${filters.monthlyPriceRange[0]} - ${filters.monthlyPriceRange[1]}
+                          </Label>
+                          <Slider
+                            value={filters.monthlyPriceRange}
+                            onValueChange={value => setFilters(prev => ({ ...prev, monthlyPriceRange: value as [number, number] }))}
+                            min={originalMonthlyRange[0]}
+                            max={originalMonthlyRange[1]}
+                            step={20}
+                            className="py-2"
+                          />
+                        </div>
+
+                        {/* Color Filter */}
+                        {uniqueColors.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Color</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {uniqueColors.map(color => (
+                                <button
+                                  key={color}
+                                  onClick={() => setFilters(prev => ({
+                                    ...prev,
+                                    colors: prev.colors.includes(color)
+                                      ? prev.colors.filter(c => c !== color)
+                                      : [...prev.colors, color]
+                                  }))}
+                                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                                    (filters.colors || []).includes(color)
+                                      ? 'bg-primary text-primary-foreground border-primary'
+                                      : 'bg-background border-border hover:border-primary/50'
+                                  }`}
+                                >
+                                  {color}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -1874,6 +1988,11 @@ const MultiStepBookingWidget = () => {
                         {getSortLabel(sortBy)}
                         <X className="w-3 h-3 cursor-pointer" onClick={() => setSortBy("recommended")} />
                       </Badge>}
+                    {(filters.colors || []).map(color => <Badge key={color} variant="secondary" className="gap-1">
+                        {color}
+                        <X className="w-3 h-3 cursor-pointer" onClick={() => setFilters(prev => ({ ...prev, colors: prev.colors.filter(c => c !== color) }))} />
+                      </Badge>)}
+                    
                     <Button variant="ghost" size="sm" className="h-6 text-xs text-primary hover:text-primary/80" onClick={clearAllFilters}>
                       Clear all
                     </Button>
@@ -1949,10 +2068,12 @@ const MultiStepBookingWidget = () => {
                                   <Car className="w-16 h-16 opacity-20 text-muted-foreground" />
                                 </div>
 
-                                {/* Registration Chip */}
-                                <div className="absolute top-3 right-3 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
-                                  {vehicle.reg}
-                                </div>
+                                {/* Selected Tick */}
+                                {isSelected && (
+                                  <div className="absolute top-3 right-3 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full flex items-center justify-center">
+                                    <Check className="w-4 h-4" />
+                                  </div>
+                                )}
 
                                 {/* Blocked Badge */}
                                 {isBlocked && blockStatus.blockedRange && (
@@ -1971,15 +2092,12 @@ const MultiStepBookingWidget = () => {
                                   {/* Title */}
                                   <div className="flex items-start justify-between gap-4">
                                     <div>
-                                      <h4 className="font-display text-2xl font-semibold text-foreground flex items-center gap-2">
-                                        {vehicleName}
-                                        {isRollsRoyce && <Crown className="w-5 h-5 text-primary" />}
+                                      <h4 className="font-display text-2xl font-semibold text-foreground flex items-center justify-between w-full">
+                                        <span className="flex items-center gap-2">{vehicleName}{isRollsRoyce && <Crown className="w-5 h-5 text-primary" />}</span>
+                                        <span className="text-sm font-normal text-primary">{vehicle.reg}</span>
                                       </h4>
                                       {vehicle.colour && <p className="text-xs text-muted-foreground mt-1">{vehicle.colour}</p>}
                                     </div>
-                                    {isSelected && <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                                        <Check className="w-4 h-4 text-black" />
-                                      </div>}
                                   </div>
 
                                   {/* Description */}
@@ -2008,15 +2126,11 @@ const MultiStepBookingWidget = () => {
                                   <div className="space-y-1">
                                     <div className="flex items-baseline gap-2">
                                       <span className="text-3xl font-bold text-primary">
-                                        ${vehicle.monthly_rent || vehicle.daily_rent || 0}
+                                        ${getProminentPrice(vehicle).price}
                                       </span>
-                                      <span className="text-sm text-muted-foreground">/ month</span>
+                                      <span className="text-sm text-muted-foreground">{getProminentPrice(vehicle).label}</span>
                                     </div>
-                                    {(vehicle.daily_rent || vehicle.weekly_rent) && <p className="text-xs text-muted-foreground">
-                                      {vehicle.daily_rent && `$${vehicle.daily_rent} / day`}
-                                      {vehicle.daily_rent && vehicle.weekly_rent && ' • '}
-                                      {vehicle.weekly_rent && `$${vehicle.weekly_rent} / week`}
-                                    </p>}
+                                    {getProminentPrice(vehicle).secondary && <p className="text-xs text-muted-foreground">{getProminentPrice(vehicle).secondary}</p>}
                                   </div>
 
                                   <Button
@@ -2039,7 +2153,7 @@ const MultiStepBookingWidget = () => {
                                         });
                                       }
                                     }}>
-                                    {isBlocked ? "Unavailable" : isSelected ? "Selected" : "Select This Vehicle"}
+                                    {isBlocked ? "Unavailable" : isSelected ? "Selected" : "Select"}
                                   </Button>
                                 </div>
                               </div>
@@ -2069,11 +2183,6 @@ const MultiStepBookingWidget = () => {
                       });
                     }
                   }}>
-                          {/* Registration Chip */}
-                          <div className="absolute top-3 right-3 z-10 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
-                            {vehicle.reg}
-                          </div>
-
                           {/* Selected Tick */}
                           {isSelected && <div className="absolute top-3 right-3 z-20 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                               <Check className="w-4 h-4 text-black" />
@@ -2113,9 +2222,9 @@ const MultiStepBookingWidget = () => {
                           <div className="p-6 space-y-4">
                             {/* Title */}
                             <div>
-                              <h4 className="font-display text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-                                {vehicleName}
-                                {isRollsRoyce && <Crown className="w-5 h-5 text-primary" />}
+                              <h4 className="font-display text-xl font-semibold text-foreground mb-1 flex items-center justify-between w-full">
+                              <span className="flex items-center gap-2">{vehicleName}{isRollsRoyce && <Crown className="w-5 h-5 text-primary" />}</span>
+                              <span className="text-xs font-normal text-primary">{vehicle.reg}</span>
                               </h4>
                               {vehicle.colour && <p className="text-xs text-muted-foreground">{vehicle.colour}</p>}
                             </div>
@@ -2140,24 +2249,17 @@ const MultiStepBookingWidget = () => {
                               </div>
                             )}
 
-                            {/* Spec Bar */}
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground pb-3 border-b border-border/50">
-                              <span title="Registration">{vehicle.reg}</span>
-                            </div>
+                            
 
                             {/* Price Section */}
                             <div className="space-y-1">
                               <div className="flex items-baseline justify-between">
                                 <span className="text-2xl font-bold text-primary">
-                                  ${vehicle.monthly_rent || vehicle.daily_rent || 0}
+                                  ${getProminentPrice(vehicle).price}
                                 </span>
-                                <span className="text-sm text-muted-foreground">/ month</span>
+                                <span className="text-sm text-muted-foreground">{getProminentPrice(vehicle).label}</span>
                               </div>
-                              {(vehicle.daily_rent || vehicle.weekly_rent) && <p className="text-xs text-muted-foreground">
-                                {vehicle.daily_rent && `$${vehicle.daily_rent} / day`}
-                                {vehicle.daily_rent && vehicle.weekly_rent && ' • '}
-                                {vehicle.weekly_rent && `$${vehicle.weekly_rent} / week`}
-                              </p>}
+                              {getProminentPrice(vehicle).secondary && <p className="text-xs text-muted-foreground">{getProminentPrice(vehicle).secondary}</p>}
                             </div>
 
                             {/* CTA */}
@@ -2181,7 +2283,7 @@ const MultiStepBookingWidget = () => {
                                   });
                                 }
                               }}>
-                              {isBlocked ? "Unavailable" : isSelected ? "Selected" : "Select This Vehicle"}
+                              {isBlocked ? "Unavailable" : isSelected ? "Selected" : "Select"}
                             </Button>
                           </div>
                         </Card>;
@@ -2220,38 +2322,50 @@ const MultiStepBookingWidget = () => {
 
                   {selectedVehicle && estimatedBooking && <div className="pt-4 border-t border-border/50 space-y-3">
                       {/* Selected Vehicle */}
-                      <div className="flex gap-3">
-                        <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0 relative">
-                          {selectedVehicle.vehicle_photos?.[0]?.photo_url ? (
-                            <img
-                              src={selectedVehicle.vehicle_photos[0].photo_url}
-                              alt={selectedVehicle.make && selectedVehicle.model ? `${selectedVehicle.make} ${selectedVehicle.model}` : selectedVehicle.reg}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                if (fallback) fallback.style.display = 'flex';
-                              }}
-                            />
-                          ) : null}
-                          <div className={`${selectedVehicle.vehicle_photos?.[0]?.photo_url ? 'hidden' : 'flex'} w-full h-full items-center justify-center absolute inset-0`}>
-                            <Car className="w-6 h-6 text-muted-foreground opacity-30" />
+                      <div className="flex justify-between items-start">
+                        <div className="flex gap-3 flex-1 min-w-0">
+                          <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0 relative">
+                            {selectedVehicle.vehicle_photos?.[0]?.photo_url ? (
+                              <img
+                                src={selectedVehicle.vehicle_photos[0].photo_url}
+                                alt={selectedVehicle.make && selectedVehicle.model ? `${selectedVehicle.make} ${selectedVehicle.model}` : selectedVehicle.reg}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Car className="w-5 h-5 text-muted-foreground opacity-30" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {selectedVehicle.make && selectedVehicle.model ? `${selectedVehicle.make} ${selectedVehicle.model}` : selectedVehicle.reg}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{estimatedBooking.days} {estimatedBooking.days === 1 ? "day" : "days"}</p>
                           </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate">
-                            {selectedVehicle.make && selectedVehicle.model ? `${selectedVehicle.make} ${selectedVehicle.model}` : selectedVehicle.make || selectedVehicle.model || selectedVehicle.reg}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{estimatedBooking.days} days</p>
-                          <p className="text-lg font-bold text-primary mt-1">
-                            ${estimatedBooking.total.toFixed(0)}
-                          </p>
-                        </div>
+                        <p className="font-semibold text-sm">${estimatedBooking.total.toFixed(0)}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Final total at checkout
-                      </p>
+
+                      {/* Protection Plan */}
+                      {selectedProtectionPlan && (
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-primary" />
+                            <span className="text-sm">{selectedProtectionPlan.display_name || selectedProtectionPlan.name}</span>
+                          </div>
+                          <p className="font-semibold text-sm">${calculateProtectionPlanCost().toFixed(0)}</p>
+                        </div>
+                      )}
+
+                      {/* Total */}
+                      <div className="pt-3 border-t border-border/50 flex justify-between items-center">
+                        <p className="font-semibold">Total</p>
+                        <p className="text-xl font-bold text-primary">
+                          ${(estimatedBooking.total + calculateProtectionPlanCost()).toFixed(0)}
+                        </p>
+                      </div>
                     </div>}
 
                   {!selectedVehicle && <div className="pt-4 border-t border-border/50">
@@ -2283,7 +2397,7 @@ const MultiStepBookingWidget = () => {
 
             {/* Mobile Action Bar */}
             <div className="flex flex-col sm:flex-row gap-3 lg:hidden mt-8">
-              <Button onClick={() => setCurrentStep(1)} variant="outline" className="w-full sm:flex-1" size="lg">
+              <Button onClick={() => setCurrentStep(1)} variant="outline" className="w-full sm:flex-1 border-primary text-primary hover:bg-primary/10" size="lg">
                 <ChevronLeft className="mr-2 w-5 h-5" /> Back
               </Button>
               <Button onClick={handleStep2Continue} disabled={!formData.vehicleId} className="w-full sm:flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50" size="lg">

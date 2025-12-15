@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import UniversalHero from "@/components/UniversalHero";
 import SEO from "@/components/SEO";
 import luxuryHero from "@/assets/promotions-hero.jpg";
+import HeroCarousel from "@/components/HeroCarousel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,15 @@ interface Vehicle {
 }
 
 const Promotions = () => {
+    // Carousel images for hero
+  const carouselImages = [
+    '/carousel-images/car3.jpeg',
+    '/carousel-images/car4.jpeg',
+ 
+    '/carousel-images/car8.jpeg',
+    '/carousel-images/car9.jpeg',
+  ];
+
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredPromotions, setFilteredPromotions] = useState<Promotion[]>([]);
@@ -75,9 +85,9 @@ const Promotions = () => {
       // Load vehicles
       const { data: vehicleData } = await supabase
         .from("vehicles")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
+        .select("id, reg")
+        .eq("status", "available")
+        .order("reg");
 
       setVehicles(vehicleData || []);
     } catch (error) {
@@ -158,28 +168,50 @@ const Promotions = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <Navigation />
 
-        <UniversalHero
-          headline={<>{content.promotions_hero?.headline || "Promotions & Offers"}</>}
-          subheading={content.promotions_hero?.subheading || "Exclusive rental offers with transparent savings."}
-          backgroundImage={content.promotions_hero?.background_image || luxuryHero}
-          backgroundAlt="Drive 917 luxury car rental promotions"
-          overlayStrength="medium"
-          primaryCTA={{
-            text: content.promotions_hero?.primary_cta_text || "View Fleet & Pricing",
-            href: content.promotions_hero?.primary_cta_href || "/fleet"
-          }}
-          secondaryCTA={{
-            text: content.promotions_hero?.secondary_cta_text || "Book Now",
-            onClick: () => {
-              const bookingSection = document.getElementById("booking");
-              if (bookingSection) {
-                bookingSection.scrollIntoView({ behavior: "smooth" });
-              } else {
-                window.location.href = "/#booking";
-              }
-            }
-          }}
-        />
+        {/* Hero Section with Carousel */}
+        <section className="relative min-h-screen ">
+          <HeroCarousel
+            images={carouselImages}
+            autoPlayInterval={5000}
+            overlayStrength="medium"
+            showScrollIndicator={true}
+            className="min-h-screen"
+          >
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="container mx-auto px-4 text-center">
+                <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+                  <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-bold text-white leading-tight">
+                    {content.promotions_hero?.headline || "Promotions & Offers"}
+                  </h1>
+                  <p className="text-lg md:text-xl lg:text-2xl text-white/90 max-w-3xl mx-auto font-light leading-relaxed">
+                    {content.promotions_hero?.subheading || "Exclusive rental offers with transparent savings."}
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+                    <a
+                      href={content.promotions_hero?.primary_cta_href || "/fleet"}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base md:text-lg px-8 py-4 rounded-md shadow-glow hover:shadow-glow transition-all"
+                    >
+                      {content.promotions_hero?.primary_cta_text || "View Fleet & Pricing"}
+                    </a>
+                    <button
+                      onClick={() => {
+                        const bookingSection = document.getElementById("booking");
+                        if (bookingSection) {
+                          bookingSection.scrollIntoView({ behavior: "smooth" });
+                        } else {
+                          window.location.href = "/#booking";
+                        }
+                      }}
+                      className="bg-transparent border-2 border-white text-white hover:bg-white/10 font-semibold text-base md:text-lg px-8 py-4 rounded-md transition-all"
+                    >
+                      {content.promotions_hero?.secondary_cta_text || "Book Now"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </HeroCarousel>
+        </section>
 
         <main className="flex-1">
           {/* Filters */}

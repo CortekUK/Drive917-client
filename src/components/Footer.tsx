@@ -79,7 +79,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link href="/testimonials" className="text-sm footer-link">
-                  Testimonials
+                  Reviews
                 </Link>
               </li>
               <li>

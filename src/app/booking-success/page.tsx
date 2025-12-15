@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
-const BookingSuccess = () => {
+const BookingSuccessContent = () => {
   const searchParams = useSearchParams();
   const [bookingDetails, setBookingDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -304,12 +304,12 @@ const BookingSuccess = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/">
+                  <Link href="/">
                     <Button className="gradient-accent hover-lift w-full sm:w-auto">
                       Return to Home
                     </Button>
                   </Link>
-                  <Link to="/contact">
+                  <Link href="/contact">
                     <Button variant="outline" className="w-full sm:w-auto">
                       Contact Support
                     </Button>
@@ -322,6 +322,21 @@ const BookingSuccess = () => {
       </main>
       <Footer />
     </>
+  );
+};
+
+const BookingSuccess = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <BookingSuccessContent />
+    </Suspense>
   );
 };
 

@@ -398,18 +398,18 @@ export const defaultContactContent: PageContent = {
   },
   contact_info: {
     phone: {
-      number: "+44 800 123 4567",
-      availability: "24 hours a day, 7 days a week, 365 days a year",
+      number: "",
+      availability: "",
     },
     email: {
-      address: "info@drive917.com",
+      address: "",
       response_time: "Response within 2 hours during business hours (PST)",
     },
     office: {
-      address: "123 Luxury Lane, London, UK",
+      address: "",
     },
     whatsapp: {
-      number: "+447900123456",
+      number: "",
       description: "Quick response for urgent enquiries",
     },
   },
@@ -454,7 +454,7 @@ export const defaultContactContent: PageContent = {
 export const defaultReviewsContent: PageContent = {
   hero: {
     title: "Customer Reviews",
-    subtitle: "What our customers say about their luxury vehicle rental experience.",
+    subtitle: "What our customers say about their vehicle rental experience.",
   },
   feedback_cta: {
     title: "Would you like to share your experience?",

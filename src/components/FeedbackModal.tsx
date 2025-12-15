@@ -220,7 +220,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 name="customer_phone"
                 type="tel"
                 maxLength={20}
-                placeholder="+44 800 123 4567"
+                placeholder="(972) 555-1234"
                 className={errors.customer_phone ? "border-destructive" : ""}
                 onChange={(e) => {
                   // Allow only numbers, spaces, +, -, (, )

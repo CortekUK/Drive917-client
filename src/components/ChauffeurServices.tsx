@@ -10,8 +10,11 @@ import EnhancedTestimonials from "@/components/EnhancedTestimonials";
 import MultiStepBookingWidget from "@/components/MultiStepBookingWidget";
 import SEO from "@/components/SEO";
 import { PortfolioCarousel } from "@/components/portfolio/PortfolioCarousel";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const ChauffeurServices = () => {
+  const { settings } = useSiteSettings();
+  const phoneLink = settings.phone.replace(/[^d+]/g, "");
   const services = [
     {
       title: "Airport Transfers",
@@ -105,8 +108,8 @@ const ChauffeurServices = () => {
             onClick: handleHeroCTA
           }}
           secondaryCTA={{
-            text: "Call 0800 123 4567",
-            href: "tel:08001234567",
+            text: `Call ${settings.phone_display}`,
+            href: `tel:${phoneLink}`,
             icon: <Phone className="w-5 h-5" />
           }}
           trustLine={["Available 24/7", "Discreet Service", "Immediate Response"]}

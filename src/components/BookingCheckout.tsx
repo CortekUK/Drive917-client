@@ -324,7 +324,7 @@ const BookingCheckout = () => {
           <Button
             variant="ghost"
             onClick={() => router.back()}
-            className="mb-6"
+            className="mb-6 text-primary hover:text-primary/80"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Vehicles

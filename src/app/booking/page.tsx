@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -69,7 +69,7 @@ const rentalDetailsSchema = z.object({
 
 type RentalDetailsForm = z.infer<typeof rentalDetailsSchema>;
 
-export default function Booking() {
+const BookingContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sameAsPickup, setSameAsPickup] = useState(true);
@@ -212,7 +212,7 @@ export default function Booking() {
         title="Rental Booking — Drive 917"
         description="Book your luxury vehicle rental with Drive 917. Choose pickup and return details for premium cars in Los Angeles."
         keywords="luxury car rental booking, Los Angeles car rental, premium vehicle booking"
-        canonical={`${window.location.origin}/booking`}
+        canonical={typeof window !== 'undefined' ? `${window.location.origin}/booking` : 'https://drive917.com/booking'}
       />
       <Navigation />
 
@@ -670,4 +670,21 @@ export default function Booking() {
       <Footer />
     </div>
   );
-}
+};
+
+const Booking = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <BookingContent />
+    </Suspense>
+  );
+};
+
+export default Booking;

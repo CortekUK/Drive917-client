@@ -20,6 +20,7 @@ import SEO from "@/components/SEO";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageContent, defaultContactContent, mergeWithDefaults } from "@/hooks/usePageContent";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const contactSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
@@ -47,6 +48,9 @@ const Contact = () => {
     gdprConsent: false,
   });
 
+  // Site settings for phone/email defaults
+  const { settings: siteSettings } = useSiteSettings();
+
   // Fetch CMS content for contact page
   const { data: cmsContent } = usePageContent("contact");
   const content = useMemo(
@@ -56,14 +60,14 @@ const Contact = () => {
 
   // Derive contact settings from CMS content
   const contactSettings = useMemo(() => ({
-    phone: content.contact_info?.phone?.number || "+44 800 123 4567",
-    email: content.contact_info?.email?.address || "info@drive917.com",
-    office_address: content.contact_info?.office?.address || "123 Luxury Lane, London, UK",
-    availability: content.contact_info?.phone?.availability || "24 hours a day, 7 days a week, 365 days a year",
-    whatsapp_number: content.contact_info?.whatsapp?.number || "+447900123456",
+    phone: content.contact_info?.phone?.number || siteSettings.phone_display,
+    email: content.contact_info?.email?.address || siteSettings.email,
+    office_address: content.contact_info?.office?.address || siteSettings.office_address,
+    availability: content.contact_info?.phone?.availability || siteSettings.availability,
+    whatsapp_number: content.contact_info?.whatsapp?.number || siteSettings.whatsapp_number || siteSettings.phone,
     whatsapp_description: content.contact_info?.whatsapp?.description || "Quick response for urgent enquiries",
     email_response_time: content.contact_info?.email?.response_time || "Response within 2 hours during business hours (PST)",
-  }), [content]);
+  }), [content, siteSettings]);
 
   // LocalBusiness schema for SEO
   const businessSchema = {
@@ -71,7 +75,7 @@ const Contact = () => {
     "@type": "CarRental",
     "name": "Drive917",
     "description": "Premium luxury car rentals in Los Angeles",
-    "url": window.location.origin,
+    "url": typeof window !== 'undefined' ? window.location.origin : 'https://drive917.com',
     "telephone": contactSettings.phone,
     "email": contactSettings.email,
     "address": {
@@ -184,7 +188,7 @@ const Contact = () => {
         description={content.seo?.description || "Get in touch with Drive917 for premium vehicle rentals, chauffeur services, and exclusive offers in Los Angeles."}
         keywords={content.seo?.keywords || "contact Drive917, luxury car rental Los Angeles, premium vehicle rental contact, chauffeur service inquiry"}
         schema={businessSchema}
-        canonical={`${window.location.origin}/contact`}
+        canonical={typeof window !== 'undefined' ? `${window.location.origin}/contact` : 'https://drive917.com/contact'}
       />
       <Navigation />
       
@@ -511,7 +515,7 @@ const Contact = () => {
                 {/* Privacy Note */}
                 <p className="text-xs text-muted-foreground">
                   Your data is handled in accordance with our{' '}
-                  <Link to="/privacy" className="text-accent hover:underline">
+                  <Link href="/privacy" className="text-accent hover:underline">
                     Privacy Policy
                   </Link>
                   . We never share your information with third parties.

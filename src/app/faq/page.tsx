@@ -7,8 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const FAQ = () => {
+  const { settings } = useSiteSettings();
+  const phoneLink = settings.phone.replace(/[^\d+]/g, "");
   const [faqs, setFaqs] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
@@ -121,9 +124,9 @@ const FAQ = () => {
                   <p className="text-muted-foreground mb-6">
                     Our team is here to help. Contact us for personalized assistance.
                   </p>
-                  <a href="tel:08001234567" className="inline-block">
+                  <a href={`tel:${phoneLink}`} className="inline-block">
                     <button className="gradient-accent shadow-glow px-8 py-3 rounded-md font-medium">
-                      Call 0800 123 4567
+                      {settings.phone_display}
                     </button>
                   </a>
                 </Card>
