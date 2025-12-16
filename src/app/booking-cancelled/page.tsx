@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
@@ -9,7 +9,7 @@ import { XCircle, ArrowLeft, MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-const BookingCancelled = () => {
+const BookingCancelledContent = () => {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const rentalId = searchParams?.get("rental_id");
@@ -123,6 +123,29 @@ const BookingCancelled = () => {
       </main>
       <Footer />
     </>
+  );
+};
+
+const BookingCancelled = () => {
+  return (
+    <Suspense fallback={
+      <>
+        <Navigation />
+        <main className="min-h-screen bg-gradient-to-b from-background to-muted pt-24 pb-16">
+          <div className="container mx-auto px-6 max-w-2xl">
+            <div className="bg-card rounded-2xl shadow-metal border border-destructive/20 p-8 md:p-12 text-center">
+              <div className="py-12">
+                <Loader2 className="w-12 h-12 text-accent mx-auto mb-4 animate-spin" />
+                <p className="text-muted-foreground">Loading...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </>
+    }>
+      <BookingCancelledContent />
+    </Suspense>
   );
 };
 
