@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format, addDays, differenceInHours, differenceInDays, parseISO } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
-import { CalendarIcon, MapPin, Clock, ChevronRight, AlertCircle } from "lucide-react";
+import { CalendarIcon, MapPin, Clock, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
