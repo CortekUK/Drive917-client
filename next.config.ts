@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
+  // Disable static page generation to avoid SSR issues with Supabase client
+  output: 'standalone',
 };
 
 export default nextConfig;

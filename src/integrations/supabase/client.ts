@@ -8,11 +8,19 @@ const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KE
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-// Create browser client that only uses localStorage when in browser environment
+// Create a no-op storage for SSR
+const noopStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
+// Create browser client that works in both SSR and browser environments
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storage: typeof window !== 'undefined' ? window.localStorage : noopStorage,
     persistSession: typeof window !== 'undefined',
     autoRefreshToken: true,
+    detectSessionInUrl: typeof window !== 'undefined',
   }
 });

@@ -9,8 +9,12 @@ import { ThemeProvider } from 'next-themes';
 import { ThemeInitializer } from '@/components/ThemeInitializer';
 import GDPRConsent from '@/components/GDPRConsent';
 import ScrollToTopOnNavigate from '@/components/ScrollToTopOnNavigate';
+import { TenantProvider } from '@/contexts/TenantContext';
 
 const inter = Inter({ subsets: ['latin'] });
+
+// Force dynamic rendering for all routes to avoid SSR issues with Supabase
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Drive917 - Premium Car Rentals',
@@ -26,23 +30,25 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <QueryClientProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem={true}
-            storageKey="vite-ui-theme"
-            disableTransitionOnChange
-          >
-            <ThemeInitializer>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <ScrollToTopOnNavigate />
-                <GDPRConsent />
-                {children}
-              </TooltipProvider>
-            </ThemeInitializer>
-          </ThemeProvider>
+          <TenantProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem={true}
+              storageKey="vite-ui-theme"
+              disableTransitionOnChange
+            >
+              <ThemeInitializer>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <ScrollToTopOnNavigate />
+                  <GDPRConsent />
+                  {children}
+                </TooltipProvider>
+              </ThemeInitializer>
+            </ThemeProvider>
+          </TenantProvider>
         </QueryClientProvider>
       </body>
     </html>
