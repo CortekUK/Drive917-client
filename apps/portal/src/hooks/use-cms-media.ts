@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/contexts/TenantContext";
 import type { CMSMedia } from "@/types/cms";
 
 const BUCKET_NAME = "cms-media";
@@ -10,10 +11,11 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]
 export const useCMSMedia = (folder?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { tenant } = useTenant();
 
-  // Fetch media files
+  // Fetch media files (filtered by tenant)
   const { data: media = [], isLoading, error } = useQuery({
-    queryKey: ["cms-media", folder],
+    queryKey: ["cms-media", folder, tenant?.id],
     queryFn: async () => {
       let query = supabase
         .from("cms_media")
@@ -24,11 +26,17 @@ export const useCMSMedia = (folder?: string) => {
         query = query.eq("folder", folder);
       }
 
+      // Filter by tenant if available
+      if (tenant?.id) {
+        query = query.or(`tenant_id.eq.${tenant.id},tenant_id.is.null`);
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
       return data as CMSMedia[];
     },
+    enabled: !!tenant,
   });
 
   // Upload media file
@@ -79,7 +87,7 @@ export const useCMSMedia = (folder?: string) => {
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
 
-      // Save to database
+      // Save to database with tenant_id
       const { data, error: dbError } = await supabase
         .from("cms_media")
         .insert({
@@ -90,6 +98,7 @@ export const useCMSMedia = (folder?: string) => {
           alt_text: altText || file.name,
           folder: uploadFolder,
           uploaded_by: appUser?.id || null,
+          tenant_id: tenant?.id || null,
         })
         .select()
         .single();

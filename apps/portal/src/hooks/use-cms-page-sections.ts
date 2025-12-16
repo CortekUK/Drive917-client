@@ -1,11 +1,28 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/contexts/TenantContext";
 import type { CMSPageSection } from "@/types/cms";
 
 export const useCMSPageSections = (pageSlug: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { tenant } = useTenant();
+
+  // Helper to get page by slug with tenant filtering
+  const getPageBySlug = async () => {
+    let query = supabase
+      .from("cms_pages")
+      .select("id, tenant_id")
+      .eq("slug", pageSlug);
+
+    // Filter by tenant if available
+    if (tenant?.id) {
+      query = query.or(`tenant_id.eq.${tenant.id},tenant_id.is.null`);
+    }
+
+    return query.single();
+  };
 
   // Update a single section
   const updateSectionMutation = useMutation({
@@ -16,12 +33,8 @@ export const useCMSPageSections = (pageSlug: string) => {
       sectionKey: string;
       content: Record<string, any>;
     }) => {
-      // First get the page id from slug
-      const { data: page, error: pageError } = await supabase
-        .from("cms_pages")
-        .select("id")
-        .eq("slug", pageSlug)
-        .single();
+      // First get the page id from slug (with tenant filtering)
+      const { data: page, error: pageError } = await getPageBySlug();
 
       if (pageError) throw pageError;
 
@@ -69,12 +82,8 @@ export const useCMSPageSections = (pageSlug: string) => {
     mutationFn: async (
       sections: { sectionKey: string; content: Record<string, any> }[]
     ) => {
-      // Get the page id
-      const { data: page, error: pageError } = await supabase
-        .from("cms_pages")
-        .select("id")
-        .eq("slug", pageSlug)
-        .single();
+      // Get the page id (with tenant filtering)
+      const { data: page, error: pageError } = await getPageBySlug();
 
       if (pageError) throw pageError;
 

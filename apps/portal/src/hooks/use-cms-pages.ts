@@ -1,36 +1,52 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/contexts/TenantContext";
 import type { CMSPage, CMSPageWithSections } from "@/types/cms";
 
 export const useCMSPages = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { tenant } = useTenant();
 
-  // Fetch all CMS pages
+  // Fetch all CMS pages for the current tenant
   const { data: pages = [], isLoading, error } = useQuery({
-    queryKey: ["cms-pages"],
+    queryKey: ["cms-pages", tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("cms_pages")
         .select("*")
         .order("name", { ascending: true });
 
+      // Filter by tenant if available
+      if (tenant?.id) {
+        query = query.or(`tenant_id.eq.${tenant.id},tenant_id.is.null`);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       return data as CMSPage[];
     },
+    enabled: !!tenant,
   });
 
-  // Fetch single page with sections
+  // Fetch single page with sections (filtered by tenant)
   const getPageWithSections = async (slug: string): Promise<CMSPageWithSections | null> => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("cms_pages")
       .select(`
         *,
         cms_page_sections(*)
       `)
-      .eq("slug", slug)
-      .single();
+      .eq("slug", slug);
+
+    // Filter by tenant if available
+    if (tenant?.id) {
+      query = query.or(`tenant_id.eq.${tenant.id},tenant_id.is.null`);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === "PGRST116") return null; // Not found
@@ -70,13 +86,14 @@ export const useCMSPages = () => {
         .eq("auth_user_id", user?.id)
         .single();
 
-      // Create version snapshot
+      // Create version snapshot with tenant_id
       await supabase.from("cms_page_versions").insert({
         page_id: pageId,
         version_number: nextVersion,
         content: sections,
         created_by: appUser?.id || null,
         notes: `Published version ${nextVersion}`,
+        tenant_id: tenant?.id || null,
       });
 
       // Update page status
@@ -137,31 +154,87 @@ export const useCMSPages = () => {
     },
   });
 
+  // Create a new page mutation (with tenant_id)
+  const createPageMutation = useMutation({
+    mutationFn: async ({
+      slug,
+      name,
+      description,
+    }: {
+      slug: string;
+      name: string;
+      description?: string;
+    }) => {
+      if (!tenant?.id) throw new Error("No tenant context available");
+
+      const { data, error } = await supabase
+        .from("cms_pages")
+        .insert({
+          slug,
+          name,
+          description: description || null,
+          status: "draft",
+          tenant_id: tenant.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as CMSPage;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cms-pages"] });
+      toast({
+        title: "Page Created",
+        description: "New CMS page has been created.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create page.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     pages,
     isLoading,
     error,
+    tenant,
     getPageWithSections,
+    createPage: createPageMutation.mutate,
+    createPageAsync: createPageMutation.mutateAsync,
     publishPage: publishPageMutation.mutate,
     unpublishPage: unpublishPageMutation.mutate,
+    isCreating: createPageMutation.isPending,
     isPublishing: publishPageMutation.isPending,
     isUnpublishing: unpublishPageMutation.isPending,
   };
 };
 
-// Hook for fetching a single page
+// Hook for fetching a single page (filtered by tenant)
 export const useCMSPage = (slug: string) => {
+  const { tenant } = useTenant();
+
   return useQuery({
-    queryKey: ["cms-page", slug],
+    queryKey: ["cms-page", slug, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("cms_pages")
         .select(`
           *,
           cms_page_sections(*)
         `)
-        .eq("slug", slug)
-        .single();
+        .eq("slug", slug);
+
+      // Filter by tenant if available
+      if (tenant?.id) {
+        query = query.or(`tenant_id.eq.${tenant.id},tenant_id.is.null`);
+      }
+
+      const { data, error } = await query.single();
 
       if (error) {
         if (error.code === "PGRST116") return null;
@@ -170,6 +243,6 @@ export const useCMSPage = (slug: string) => {
 
       return data as CMSPageWithSections;
     },
-    enabled: !!slug,
+    enabled: !!slug && !!tenant,
   });
 };

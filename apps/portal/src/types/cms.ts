@@ -10,6 +10,7 @@ export interface CMSPage {
   published_by: string | null;
   created_at: string;
   updated_at: string;
+  tenant_id: string | null; // Multi-tenant support
 }
 
 export interface CMSPageSection {
@@ -31,6 +32,7 @@ export interface CMSPageVersion {
   created_by: string | null;
   created_at: string;
   notes: string | null;
+  tenant_id: string | null; // Multi-tenant support
 }
 
 export interface CMSMedia {
@@ -43,6 +45,7 @@ export interface CMSMedia {
   folder: string;
   uploaded_by: string | null;
   created_at: string;
+  tenant_id: string | null; // Multi-tenant support
 }
 
 // Content Types for Contact Page Sections

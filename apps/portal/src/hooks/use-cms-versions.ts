@@ -1,22 +1,35 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/contexts/TenantContext";
 import type { CMSPageVersion } from "@/types/cms";
 
 export const useCMSVersions = (pageSlug: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { tenant } = useTenant();
 
-  // Fetch all versions for a page
+  // Helper to get page by slug with tenant filtering
+  const getPageBySlug = async () => {
+    let query = supabase
+      .from("cms_pages")
+      .select("id")
+      .eq("slug", pageSlug);
+
+    // Filter by tenant if available
+    if (tenant?.id) {
+      query = query.or(`tenant_id.eq.${tenant.id},tenant_id.is.null`);
+    }
+
+    return query.single();
+  };
+
+  // Fetch all versions for a page (filtered by tenant)
   const { data: versions = [], isLoading, error } = useQuery({
-    queryKey: ["cms-versions", pageSlug],
+    queryKey: ["cms-versions", pageSlug, tenant?.id],
     queryFn: async () => {
-      // First get the page id
-      const { data: page, error: pageError } = await supabase
-        .from("cms_pages")
-        .select("id")
-        .eq("slug", pageSlug)
-        .single();
+      // First get the page id (with tenant filtering)
+      const { data: page, error: pageError } = await getPageBySlug();
 
       if (pageError) {
         if (pageError.code === "PGRST116") return [];
@@ -28,7 +41,7 @@ export const useCMSVersions = (pageSlug: string) => {
         .from("cms_page_versions")
         .select(`
           *,
-          
+
         `)
         .eq("page_id", page.id)
         .order("version_number", { ascending: false });
@@ -36,7 +49,7 @@ export const useCMSVersions = (pageSlug: string) => {
       if (error) throw error;
       return data as CMSPageVersion[];
     },
-    enabled: !!pageSlug,
+    enabled: !!pageSlug && !!tenant,
   });
 
   // Rollback to a specific version
@@ -106,13 +119,10 @@ export const useCMSVersions = (pageSlug: string) => {
   // Delete old versions (keep last N)
   const cleanupVersionsMutation = useMutation({
     mutationFn: async (keepCount: number = 10) => {
-      const { data: page } = await supabase
-        .from("cms_pages")
-        .select("id")
-        .eq("slug", pageSlug)
-        .single();
+      // Get page with tenant filtering
+      const { data: page, error: pageError } = await getPageBySlug();
 
-      if (!page) throw new Error("Page not found");
+      if (pageError || !page) throw new Error("Page not found");
 
       // Get versions to keep
       const { data: versionsToKeep } = await supabase

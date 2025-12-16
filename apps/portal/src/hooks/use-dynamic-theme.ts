@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { useOrgSettings } from './use-org-settings';
+import { useTenantBranding } from './use-tenant-branding';
 
 // Default theme colors - must match index.css
 const DEFAULT_COLORS = {
@@ -112,11 +112,11 @@ function generateColorVariants(hex: string) {
 }
 
 export function useDynamicTheme() {
-  const { settings } = useOrgSettings();
+  const { branding } = useTenantBranding();
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
-    if (!settings) return;
+    if (!branding) return;
 
     const root = document.documentElement;
     const isDarkMode = resolvedTheme === 'dark';
@@ -124,20 +124,20 @@ export function useDynamicTheme() {
 
     // Get the appropriate colors for current theme
     const primaryColorHex = isDarkMode
-      ? (settings.dark_primary_color || settings.primary_color)
-      : (settings.light_primary_color || settings.primary_color);
+      ? (branding.dark_primary_color || branding.primary_color)
+      : (branding.light_primary_color || branding.primary_color);
 
     const secondaryColorHex = isDarkMode
-      ? (settings.dark_secondary_color || settings.secondary_color)
-      : (settings.light_secondary_color || settings.secondary_color);
+      ? (branding.dark_secondary_color || branding.secondary_color)
+      : (branding.light_secondary_color || branding.secondary_color);
 
     const accentColorHex = isDarkMode
-      ? (settings.dark_accent_color || settings.accent_color)
-      : (settings.light_accent_color || settings.accent_color);
+      ? (branding.dark_accent_color || branding.accent_color)
+      : (branding.light_accent_color || branding.accent_color);
 
     const backgroundColorHex = isDarkMode
-      ? settings.dark_background_color
-      : settings.light_background_color;
+      ? branding.dark_background_color
+      : branding.light_background_color;
 
     // Apply primary color
     if (primaryColorHex) {
@@ -247,57 +247,57 @@ export function useDynamicTheme() {
     }
 
     // Update document title
-    if (settings.meta_title) {
-      document.title = settings.meta_title;
-    } else if (settings.app_name) {
-      document.title = `${settings.app_name} - Portal`;
+    if (branding.meta_title) {
+      document.title = branding.meta_title;
+    } else if (branding.app_name) {
+      document.title = `${branding.app_name} - Portal`;
     }
 
     // Update favicon if provided
-    if (settings.favicon_url) {
+    if (branding.favicon_url) {
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
       if (link) {
-        link.href = settings.favicon_url;
+        link.href = branding.favicon_url;
       } else {
         const newLink = document.createElement('link');
         newLink.rel = 'icon';
-        newLink.href = settings.favicon_url;
+        newLink.href = branding.favicon_url;
         document.head.appendChild(newLink);
       }
     }
 
     // Update meta description
-    if (settings.meta_description) {
+    if (branding.meta_description) {
       let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
       if (metaDesc) {
-        metaDesc.content = settings.meta_description;
+        metaDesc.content = branding.meta_description;
       } else {
         metaDesc = document.createElement('meta');
         metaDesc.name = 'description';
-        metaDesc.content = settings.meta_description;
+        metaDesc.content = branding.meta_description;
         document.head.appendChild(metaDesc);
       }
     }
 
     // Update OG meta tags
-    if (settings.meta_title) {
-      updateMetaTag('og:title', settings.meta_title);
-      updateMetaTag('twitter:title', settings.meta_title);
+    if (branding.meta_title) {
+      updateMetaTag('og:title', branding.meta_title);
+      updateMetaTag('twitter:title', branding.meta_title);
     }
 
-    if (settings.meta_description) {
-      updateMetaTag('og:description', settings.meta_description);
-      updateMetaTag('twitter:description', settings.meta_description);
+    if (branding.meta_description) {
+      updateMetaTag('og:description', branding.meta_description);
+      updateMetaTag('twitter:description', branding.meta_description);
     }
 
-    if (settings.og_image_url) {
-      updateMetaTag('og:image', settings.og_image_url);
-      updateMetaTag('twitter:image', settings.og_image_url);
+    if (branding.og_image_url) {
+      updateMetaTag('og:image', branding.og_image_url);
+      updateMetaTag('twitter:image', branding.og_image_url);
     }
 
-  }, [settings, resolvedTheme]);
+  }, [branding, resolvedTheme]);
 
-  return { settings };
+  return { branding };
 }
 
 function updateMetaTag(property: string, content: string) {
