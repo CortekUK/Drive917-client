@@ -148,7 +148,7 @@ export default function RentalCompaniesPage() {
         masterPassword: masterPassword,
         adminEmail: adminEmail,
         adminPassword: adminPassword,
-        portalUrl: `https://${slug}.drive-247.com/dashboard`,
+        portalUrl: `https://${slug}.portal.drive-247.com`,
         bookingUrl: `https://${slug}.drive-247.com`,
       };
 
@@ -342,7 +342,7 @@ Access URLs:
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{tenant.slug}</div>
-                  <div className="text-xs text-gray-500">{tenant.slug}.yourdomain.com</div>
+                  <div className="text-xs text-gray-500">{tenant.slug}.portal.drive-247.com</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-500">{tenant.contact_email}</div>
@@ -456,7 +456,7 @@ Access URLs:
                   placeholder="acme-rentals"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Will be: {formData.slug || 'slug'}.yourdomain.com
+                  Portal: {formData.slug || 'slug'}.portal.drive-247.com | Booking: {formData.slug || 'slug'}.drive-247.com
                 </p>
               </div>
 
@@ -535,7 +535,11 @@ Access URLs:
                   <span className="text-sm font-medium text-gray-900">{selectedTenantCreds.slug}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Subdomain:</span>
+                  <span className="text-sm text-gray-600">Portal:</span>
+                  <span className="text-sm font-semibold text-indigo-600">{selectedTenantCreds.slug}.portal.drive-247.com</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Booking:</span>
                   <span className="text-sm font-semibold text-indigo-600">{selectedTenantCreds.slug}.drive-247.com</span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -690,7 +694,7 @@ Access URLs:
 
             <p className="text-sm text-gray-600 mb-6">
               Use this password to log into the tenant's portal without knowing their actual password.
-              Access the portal at: <strong>{tenants.find(t => t.id === showMasterPassword)?.slug}.yourdomain.com</strong>
+              Access the portal at: <strong>{tenants.find(t => t.id === showMasterPassword)?.slug}.portal.drive-247.com</strong>
             </p>
 
             <button
