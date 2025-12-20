@@ -73,6 +73,8 @@ serve(async (req) => {
           payment_intent: refund.stripe_payment_intent_id,
           amount: Math.round(refund.refund_amount * 100), // Convert to cents
           reason: 'requested_by_customer',
+          // For Stripe Connect: reverse the transfer to pull money from tenant
+          reverse_transfer: true,
           metadata: {
             payment_id: refund.payment_id,
             customer_id: refund.customer_id,

@@ -41,11 +41,12 @@ serve(async (req) => {
     let tenantId: string | null = null
     let companyName = 'Drive 917'
     let currencyCode = 'usd'
+    let stripeAccountId: string | null = null
 
     if (slug) {
       const { data: tenant, error: tenantError } = await supabaseClient
         .from('tenants')
-        .select('id, company_name, currency_code')
+        .select('id, company_name, currency_code, stripe_account_id, stripe_onboarding_complete')
         .eq('slug', slug)
         .eq('status', 'active')
         .single()
@@ -54,11 +55,16 @@ serve(async (req) => {
         tenantId = tenant.id
         companyName = tenant.company_name || companyName
         currencyCode = (tenant.currency_code || 'USD').toLowerCase()
+
+        // Only use Stripe Connect if tenant has completed onboarding
+        if (tenant.stripe_account_id && tenant.stripe_onboarding_complete) {
+          stripeAccountId = tenant.stripe_account_id
+        }
       }
     }
 
     // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig: any = {
       payment_method_types: ['card'],
       line_items: [
         {
@@ -89,7 +95,18 @@ serve(async (req) => {
         tenant_id: tenantId,
         tenant_slug: slug,
       },
-    })
+    }
+
+    // If tenant has Stripe Connect, route payment to their account
+    if (stripeAccountId) {
+      sessionConfig.payment_intent_data = {
+        transfer_data: {
+          destination: stripeAccountId,
+        },
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig)
 
     return new Response(
       JSON.stringify({ sessionId: session.id, url: session.url }),

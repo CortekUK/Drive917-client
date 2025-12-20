@@ -112,6 +112,8 @@ serve(async (req) => {
           let refundParams: Stripe.RefundCreateParams = {
             payment_intent: paymentIntentId,
             reason: "requested_by_customer",
+            // For Stripe Connect: reverse the transfer to pull money from tenant
+            reverse_transfer: true,
           };
 
           if (refundType === "partial" && refundAmount) {

@@ -48,6 +48,8 @@ serve(async (req) => {
 
     // Get tenant_id from rental if not provided
     let tenantId = body.tenantId
+    let stripeAccountId: string | null = null
+
     if (!tenantId && body.rentalId) {
       const { data: rental } = await supabase
         .from('rentals')
@@ -55,6 +57,19 @@ serve(async (req) => {
         .eq('id', body.rentalId)
         .single()
       tenantId = rental?.tenant_id
+    }
+
+    // Get tenant's Stripe Connect account if available
+    if (tenantId) {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('stripe_account_id, stripe_onboarding_complete')
+        .eq('id', tenantId)
+        .single()
+
+      if (tenant?.stripe_account_id && tenant?.stripe_onboarding_complete) {
+        stripeAccountId = tenant.stripe_account_id
+      }
     }
 
     // Create Stripe PaymentIntent with manual capture (pre-authorization)
@@ -111,14 +126,24 @@ serve(async (req) => {
       // Don't fail the checkout - just log the error
     }
 
+    // Build payment_intent_data with optional Stripe Connect transfer
+    const paymentIntentData: any = {
+      capture_method: 'manual',
+      metadata: paymentIntent.metadata,
+    }
+
+    // If tenant has Stripe Connect, route payment to their account
+    if (stripeAccountId) {
+      paymentIntentData.transfer_data = {
+        destination: stripeAccountId,
+      }
+    }
+
     // Create Stripe Checkout Session for collecting payment method
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
-      payment_intent_data: {
-        capture_method: 'manual',
-        metadata: paymentIntent.metadata,
-      },
+      payment_intent_data: paymentIntentData,
       line_items: [
         {
           price_data: {

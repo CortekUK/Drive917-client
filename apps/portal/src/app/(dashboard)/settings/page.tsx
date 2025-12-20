@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Settings as SettingsIcon, Building2, Bell, Zap, Upload, Save, Loader2, Database, AlertTriangle, Trash2, CreditCard, Palette } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Bell, Zap, Upload, Save, Loader2, Database, AlertTriangle, Trash2, CreditCard, Palette, Link2, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useOrgSettings } from '@/hooks/use-org-settings';
 import { useTenantBranding } from '@/hooks/use-tenant-branding';
@@ -25,6 +25,7 @@ import ReminderRulesConfig from '@/components/settings/reminder-rules-config';
 import { ColorPicker } from '@/components/settings/color-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { OGImageUpload } from '@/components/settings/og-image-upload';
+import { StripeConnectSettings } from '@/components/settings/stripe-connect-settings';
 
 const Settings = () => {
   const queryClient = useQueryClient();
@@ -57,7 +58,7 @@ const Settings = () => {
   // Handle URL tab parameter
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['branding', 'reminders', 'payments', 'users'].includes(tabParam)) {
+    if (tabParam && ['branding', 'reminders', 'payments', 'stripe-connect', 'users'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -364,7 +365,7 @@ const Settings = () => {
 
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="branding" className="flex items-center gap-2">
             <Palette className="h-4 w-4" />
             <span className="hidden sm:inline">Branding</span>
@@ -376,6 +377,10 @@ const Settings = () => {
           <TabsTrigger value="payments" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Payments</span>
+          </TabsTrigger>
+          <TabsTrigger value="stripe-connect" className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Stripe Connect</span>
           </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <SettingsIcon className="h-4 w-4" />
@@ -1135,6 +1140,11 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Stripe Connect Tab */}
+        <TabsContent value="stripe-connect" className="space-y-6">
+          <StripeConnectSettings />
         </TabsContent>
 
       {/* Users Tab - Moved to separate page */}

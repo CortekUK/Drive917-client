@@ -1,0 +1,308 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Link2, CheckCircle2, AlertCircle, ExternalLink, Loader2, RefreshCw, Copy } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+
+interface StripeConnectStatus {
+  stripe_account_id: string | null;
+  stripe_onboarding_complete: boolean;
+  stripe_account_status: string | null;
+}
+
+export function StripeConnectSettings() {
+  const queryClient = useQueryClient();
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
+  // Get current tenant's Stripe Connect status
+  const { data: tenantStatus, isLoading } = useQuery({
+    queryKey: ['tenant-stripe-status'],
+    queryFn: async () => {
+      // Get current user's tenant
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: appUser, error: userError } = await supabase
+        .from('app_users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError || !appUser?.tenant_id) {
+        throw new Error('Could not find tenant');
+      }
+
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .select('id, stripe_account_id, stripe_onboarding_complete, stripe_account_status, company_name')
+        .eq('id', appUser.tenant_id)
+        .single();
+
+      if (tenantError) throw tenantError;
+      return tenant;
+    },
+  });
+
+  // Generate onboarding link mutation
+  const generateLinkMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantStatus?.id) throw new Error('Tenant not found');
+
+      // If no Stripe account exists, create one first
+      if (!tenantStatus.stripe_account_id) {
+        const { data, error } = await supabase.functions.invoke('create-connected-account', {
+          body: {
+            tenantId: tenantStatus.id,
+            email: '', // Will use tenant email from database
+            businessName: tenantStatus.company_name,
+          },
+        });
+
+        if (error) throw error;
+        return data;
+      }
+
+      // Otherwise just get a new onboarding link
+      const { data, error } = await supabase.functions.invoke('get-connect-onboarding-link', {
+        body: {
+          tenantId: tenantStatus.id,
+        },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.onboardingUrl) {
+        window.open(data.onboardingUrl, '_blank');
+        toast({
+          title: 'Onboarding Link Generated',
+          description: 'A new tab has been opened to complete Stripe onboarding.',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['tenant-stripe-status'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to generate onboarding link',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleGenerateLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      await generateLinkMutation.mutateAsync();
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const copyAccountId = () => {
+    if (tenantStatus?.stripe_account_id) {
+      navigator.clipboard.writeText(tenantStatus.stripe_account_id);
+      toast({
+        title: 'Copied',
+        description: 'Stripe Account ID copied to clipboard',
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6 flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading Stripe Connect status...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isConnected = tenantStatus?.stripe_onboarding_complete && tenantStatus?.stripe_account_status === 'active';
+  const isPending = tenantStatus?.stripe_account_id && !tenantStatus?.stripe_onboarding_complete;
+  const isRestricted = tenantStatus?.stripe_account_status === 'restricted';
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Link2 className="h-5 w-5 text-primary" />
+          Stripe Connect
+        </CardTitle>
+        <CardDescription>
+          Connect your Stripe account to receive payments directly to your bank account
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Status Display */}
+        <div className={`p-4 rounded-lg border ${
+          isConnected
+            ? 'bg-green-50 border-green-200'
+            : isPending
+            ? 'bg-yellow-50 border-yellow-200'
+            : isRestricted
+            ? 'bg-red-50 border-red-200'
+            : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              isConnected
+                ? 'bg-green-100 text-green-600'
+                : isPending
+                ? 'bg-yellow-100 text-yellow-600'
+                : isRestricted
+                ? 'bg-red-100 text-red-600'
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              {isConnected ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <AlertCircle className="h-5 w-5" />
+              )}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h4 className={`font-medium ${
+                  isConnected
+                    ? 'text-green-800'
+                    : isPending
+                    ? 'text-yellow-800'
+                    : isRestricted
+                    ? 'text-red-800'
+                    : 'text-gray-800'
+                }`}>
+                  {isConnected
+                    ? 'Stripe Connected'
+                    : isPending
+                    ? 'Onboarding Incomplete'
+                    : isRestricted
+                    ? 'Account Restricted'
+                    : 'Not Connected'
+                  }
+                </h4>
+                <Badge variant={isConnected ? 'default' : isPending ? 'secondary' : 'destructive'}>
+                  {tenantStatus?.stripe_account_status || 'Not Set Up'}
+                </Badge>
+              </div>
+              <p className={`text-sm mt-1 ${
+                isConnected
+                  ? 'text-green-700'
+                  : isPending
+                  ? 'text-yellow-700'
+                  : isRestricted
+                  ? 'text-red-700'
+                  : 'text-gray-600'
+              }`}>
+                {isConnected
+                  ? 'Your Stripe account is fully connected. Payments will be deposited directly to your bank account.'
+                  : isPending
+                  ? 'Please complete the Stripe onboarding process to start receiving payments.'
+                  : isRestricted
+                  ? 'Your Stripe account has restrictions. Please contact Stripe support or complete additional verification.'
+                  : 'Set up Stripe Connect to receive payments directly to your bank account.'
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Account Details */}
+        {tenantStatus?.stripe_account_id && (
+          <div className="space-y-3">
+            <h4 className="font-medium">Account Details</h4>
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">Account ID</p>
+                  <p className="font-mono text-sm">{tenantStatus.stripe_account_id}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={copyAccountId}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">Payouts</p>
+                  <p className="font-medium">{isConnected ? 'Enabled' : 'Disabled'}</p>
+                </div>
+                {isConnected && (
+                  <Badge variant="secondary" className="bg-green-100 text-green-700">Active</Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-3">
+          {!isConnected && (
+            <Button
+              onClick={handleGenerateLink}
+              disabled={isGeneratingLink}
+            >
+              {isGeneratingLink ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : tenantStatus?.stripe_account_id ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Complete Onboarding
+                </>
+              ) : (
+                <>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Set Up Stripe Connect
+                </>
+              )}
+            </Button>
+          )}
+
+          {isConnected && (
+            <Button
+              variant="outline"
+              onClick={() => window.open('https://dashboard.stripe.com/connect/accounts/overview', '_blank')}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View Stripe Dashboard
+            </Button>
+          )}
+        </div>
+
+        {/* Info Box */}
+        <div className="bg-muted/50 p-4 rounded-lg">
+          <h4 className="font-medium mb-2">How Stripe Connect Works</h4>
+          <ul className="text-sm text-muted-foreground space-y-2">
+            <li className="flex items-start gap-2">
+              <span className="text-primary mt-0.5">1.</span>
+              <span>Click "Set Up Stripe Connect" to begin the onboarding process</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary mt-0.5">2.</span>
+              <span>Complete Stripe's verification (business info, bank account, ID)</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary mt-0.5">3.</span>
+              <span>Once verified, customer payments go directly to your bank account</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary mt-0.5">4.</span>
+              <span>Stripe handles payouts automatically on your schedule</span>
+            </li>
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default StripeConnectSettings;
