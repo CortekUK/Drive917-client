@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bell, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface PendingBooking {
   id: string;
@@ -39,15 +40,16 @@ interface CurrentMonthBilling {
 
 export const ActionItems = () => {
   const router = useRouter();
+  const { tenant } = useTenant();
 
   // Fetch new bookings (recently created, all statuses)
   const { data: newBookings = [] } = useQuery({
-    queryKey: ["new-bookings"],
+    queryKey: ["new-bookings", tenant?.id],
     queryFn: async () => {
       const threeDaysAgo = new Date();
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("rentals")
         .select(`
           id,
@@ -61,6 +63,12 @@ export const ActionItems = () => {
         .gte("created_at", threeDaysAgo.toISOString())
         .order("created_at", { ascending: false });
 
+      if (tenant?.id) {
+        query = query.eq("tenant_id", tenant.id);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
 
       return (data || []).map((booking: any) => ({
@@ -73,13 +81,14 @@ export const ActionItems = () => {
         status: booking.status,
       }));
     },
+    enabled: !!tenant,
   });
 
   // Fetch pending bookings (awaiting approval)
   const { data: pendingBookings = [] } = useQuery({
-    queryKey: ["pending-bookings"],
+    queryKey: ["pending-bookings", tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("rentals")
         .select(`
           id,
@@ -89,8 +98,14 @@ export const ActionItems = () => {
           customers(name),
           vehicles(reg)
         `)
-        .eq("status", "pending_approval")
+        .eq("status", "Pending")
         .order("created_at", { ascending: false });
+
+      if (tenant?.id) {
+        query = query.eq("tenant_id", tenant.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -103,15 +118,16 @@ export const ActionItems = () => {
         created_at: booking.created_at,
       })) as PendingBooking[];
     },
+    enabled: !!tenant,
   });
 
   // Fetch urgent reminders (very urgent or near)
   const { data: urgentReminders = [] } = useQuery({
-    queryKey: ["urgent-reminders"],
+    queryKey: ["urgent-reminders", tenant?.id],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("reminders")
         .select(`
           id,
@@ -125,6 +141,12 @@ export const ActionItems = () => {
         .order("due_on", { ascending: true })
         .limit(10);
 
+      if (tenant?.id) {
+        query = query.eq("tenant_id", tenant.id);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
 
       return (data || []).map((reminder: any) => ({
@@ -135,23 +157,30 @@ export const ActionItems = () => {
         vehicle_reg: undefined, // reminders don't directly link to vehicles
       })) as UrgentReminder[];
     },
+    enabled: !!tenant,
   });
 
   // Fetch current month billing data
   const { data: currentMonthBilling } = useQuery({
-    queryKey: ["current-month-billing"],
+    queryKey: ["current-month-billing", tenant?.id],
     queryFn: async () => {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthStartStr = format(monthStart, 'yyyy-MM-dd');
       const todayStr = format(now, 'yyyy-MM-dd');
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("rentals")
         .select("total_price, start_date")
         .gte("start_date", monthStartStr)
         .lte("start_date", todayStr)
-        .eq("status", "active");
+        .eq("status", "Active");
+
+      if (tenant?.id) {
+        query = query.eq("tenant_id", tenant.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -203,6 +232,7 @@ export const ActionItems = () => {
         daysUntilBilling,
       } as CurrentMonthBilling;
     },
+    enabled: !!tenant,
   });
 
   const monthName = format(new Date(), 'MMMM yyyy');
