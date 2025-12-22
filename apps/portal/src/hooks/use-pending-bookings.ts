@@ -100,6 +100,7 @@ export const usePendingBookings = () => {
       console.log("Pending bookings fetched:", data?.length || 0);
       return (data as unknown as PendingBooking[]) || [];
     },
+    enabled: !!tenant,
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Refetch every minute
   });
@@ -130,6 +131,7 @@ export const usePendingBookingsCount = () => {
 
       return count || 0;
     },
+    enabled: !!tenant,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });

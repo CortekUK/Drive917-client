@@ -160,14 +160,40 @@ export default function DocumentsList() {
     return matchesSearch;
   });
 
-  const handleDownload = (fileUrl: string, fileName: string) => {
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.download = fileName;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const getPublicUrl = (filePath: string) => {
+    // If it's already a full URL, return as is
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+    // Otherwise, get the public URL from Supabase Storage
+    const { data } = supabase.storage
+      .from('customer-documents')
+      .getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleDownload = async (fileUrl: string, fileName: string) => {
+    try {
+      const publicUrl = getPublicUrl(fileUrl);
+      const response = await fetch(publicUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download document');
+    }
+  };
+
+  const handleView = (fileUrl: string) => {
+    const publicUrl = getPublicUrl(fileUrl);
+    window.open(publicUrl, "_blank");
   };
 
   const getDocumentTypeColor = (type?: string) => {
@@ -327,7 +353,7 @@ export default function DocumentsList() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.open(doc.file_url, "_blank")}
+                                onClick={() => handleView(doc.file_url!)}
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>

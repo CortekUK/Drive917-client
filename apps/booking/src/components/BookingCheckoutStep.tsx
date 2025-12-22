@@ -339,18 +339,13 @@ export default function BookingCheckoutStep({
         console.log('🔗 Linking verification to customer:', formData.verificationSessionId);
         console.log('🔗 Customer ID to link:', customer.id);
 
-        // Query the verification record by session_id within this tenant
-        let verificationQuery = supabase
+        // Query the verification record by session_id only (don't filter by tenant_id
+        // because the webhook creates the record without tenant_id for booking flow)
+        const { data: verification, error: verificationQueryError } = await supabase
           .from('identity_verifications')
-          .select('*') // Select all fields to debug
-          .eq('session_id', formData.verificationSessionId);
-
-        if (tenant?.id) {
-          verificationQuery = verificationQuery.eq('tenant_id', tenant.id);
-        }
-
-        const { data: verification, error: verificationQueryError } = await verificationQuery
-          .maybeSingle(); // Use maybeSingle() in case webhook hasn't created the record yet
+          .select('*')
+          .eq('session_id', formData.verificationSessionId)
+          .maybeSingle();
 
         console.log('🔍 Query result - verification:', verification);
         console.log('🔍 Query result - error:', verificationQueryError);
@@ -363,18 +358,17 @@ export default function BookingCheckoutStep({
             review_result: verification.review_result
           });
 
-          // Update verification to link it to the customer
-          let verificationUpdateQuery = supabase
-            .from('identity_verifications')
-            .update({ customer_id: customer.id })
-            .eq('id', verification.id);
-
+          // Update verification to link it to the customer and set tenant_id
+          const updateData: { customer_id: string; tenant_id?: string } = { customer_id: customer.id };
           if (tenant?.id) {
-            verificationUpdateQuery = verificationUpdateQuery.eq('tenant_id', tenant.id);
+            updateData.tenant_id = tenant.id;
           }
 
-          const { data: updateResult, error: verificationUpdateError } = await verificationUpdateQuery
-            .select(); // Return the updated record
+          const { data: updateResult, error: verificationUpdateError } = await supabase
+            .from('identity_verifications')
+            .update(updateData)
+            .eq('id', verification.id)
+            .select();
 
           console.log('📝 Update result - data:', updateResult);
           console.log('📝 Update result - error:', verificationUpdateError);
