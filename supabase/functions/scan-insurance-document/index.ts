@@ -184,15 +184,15 @@ ${extractedText.substring(0, 15000)}`
     const openaiData = await openaiResponse.json();
     console.log('OpenAI response received');
 
-    const extractedText = openaiData.choices[0]?.message?.content;
-    if (!extractedText) {
+    const aiResponseContent = openaiData.choices[0]?.message?.content;
+    if (!aiResponseContent) {
       throw new Error('No content in OpenAI response');
     }
 
-    console.log('OpenAI raw response:', extractedText.substring(0, 200));
+    console.log('OpenAI raw response:', aiResponseContent.substring(0, 200));
 
     // Parse extracted JSON (remove any markdown formatting if present)
-    const cleanedText = extractedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const cleanedText = aiResponseContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     let extractedData: ExtractedData;
     try {
@@ -207,7 +207,7 @@ ${extractedText.substring(0, 15000)}`
           ai_scan_status: 'needs_review',
           ai_extracted_data: {
             note: 'AI could not extract structured data from this document',
-            raw_response: extractedText.substring(0, 500)
+            raw_response: aiResponseContent.substring(0, 500)
           },
           ai_validation_score: 0,
           scanned_at: new Date().toISOString()
