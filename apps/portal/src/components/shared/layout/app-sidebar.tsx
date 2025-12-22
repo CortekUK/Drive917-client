@@ -140,7 +140,7 @@ export function AppSidebar() {
   };
   const collapsed = state === "collapsed";
   return <Sidebar collapsible="icon" className="transition-all duration-300 ease-in-out">
-      <SidebarHeader className="h-16 border-b">
+      <SidebarHeader className="h-20 border-b pt-4">
         <div className="flex items-center justify-center w-full h-full transition-all duration-300 ease-in-out">
           {logoUrl ? (
             <img
