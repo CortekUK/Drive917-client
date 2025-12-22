@@ -1752,7 +1752,7 @@ const MultiStepBookingWidget = () => {
               {/* Row 3: Driver Age & Promo Code */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="driverAge" className="font-medium">Driver Age *</Label>
+                  <Label htmlFor="driverAge" className="font-medium">Driver's Age *</Label>
                   <Select value={formData.driverAge} onValueChange={value => {
                   setFormData({
                     ...formData,
