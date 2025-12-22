@@ -1,15 +1,14 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useCMSPages } from "@/hooks/use-cms-pages";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Globe, FileText, Edit, Clock, CheckCircle, ShieldAlert } from "lucide-react";
+import { Globe, FileText, Edit, Clock, CheckCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useAuthStore } from "@/stores/auth-store";
 
 // Order pages to match website navigation
 const PAGE_ORDER = ["home", "about", "fleet", "reviews", "promotions", "contact", "privacy", "terms", "site-settings"];
@@ -17,14 +16,6 @@ const PAGE_ORDER = ["home", "about", "fleet", "reviews", "promotions", "contact"
 export default function CMS() {
   const router = useRouter();
   const { pages, isLoading } = useCMSPages();
-  const { appUser } = useAuthStore();
-
-  // Redirect non-super admins to dashboard
-  useEffect(() => {
-    if (appUser && !appUser.is_super_admin) {
-      router.push('/');
-    }
-  }, [appUser, router]);
 
   // Sort pages according to navigation order
   const sortedPages = useMemo(() => {
