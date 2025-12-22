@@ -155,6 +155,11 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -234,6 +239,11 @@ All colors MUST be HSL.
   /* Buttons with purple focus rings and rounded-lg */
   .btn-primary {
     @apply bg-gradient-primary text-primary-foreground rounded-lg font-medium px-4 py-2 transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 hover:opacity-90;
+  }
+
+  /* Ensure gradient backgrounds have proper text color */
+  .bg-gradient-primary {
+    color: white !important;
   }
 
   /* Cards with hover scale and rounded-lg */

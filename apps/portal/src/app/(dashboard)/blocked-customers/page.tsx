@@ -174,42 +174,30 @@ const BlockedCustomers = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-2 md:gap-4">
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-1 md:pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-              Blocked Customers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 md:p-6 pt-0">
-            <div className="text-2xl md:text-3xl font-bold text-destructive">
-              {blockedCustomers?.length || 0}
-            </div>
-          </CardContent>
+      <div className="grid grid-cols-3 gap-3 md:gap-4">
+        <Card className="p-4 md:p-6">
+          <div className="text-2xl md:text-3xl font-bold text-destructive">
+            {blockedCustomers?.length || 0}
+          </div>
+          <div className="text-xs md:text-sm text-muted-foreground mt-1">
+            Blocked Customers
+          </div>
         </Card>
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-1 md:pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-              Blocked Identities
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 md:p-6 pt-0">
-            <div className="text-2xl md:text-3xl font-bold text-orange-600">
-              {blockedIdentities?.length || 0}
-            </div>
-          </CardContent>
+        <Card className="p-4 md:p-6">
+          <div className="text-2xl md:text-3xl font-bold text-orange-500">
+            {blockedIdentities?.length || 0}
+          </div>
+          <div className="text-xs md:text-sm text-muted-foreground mt-1">
+            Blocked Identities
+          </div>
         </Card>
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-1 md:pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-              Blocked Licenses
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 md:p-6 pt-0">
-            <div className="text-2xl md:text-3xl font-bold">
-              {blockedIdentities?.filter(i => i.identity_type === "license").length || 0}
-            </div>
-          </CardContent>
+        <Card className="p-4 md:p-6">
+          <div className="text-2xl md:text-3xl font-bold">
+            {blockedIdentities?.filter(i => i.identity_type === "license").length || 0}
+          </div>
+          <div className="text-xs md:text-sm text-muted-foreground mt-1">
+            Blocked Licenses
+          </div>
         </Card>
       </div>
 

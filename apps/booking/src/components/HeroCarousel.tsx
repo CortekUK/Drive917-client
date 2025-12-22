@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 
 interface HeroCarouselProps {
@@ -45,14 +47,14 @@ const HeroCarousel = ({
   };
 
   useEffect(() => {
-    if (!isAutoPlaying) return;
+    if (!isAutoPlaying || images.length <= 1) return;
 
     const interval = setInterval(() => {
       nextSlide();
     }, autoPlayInterval);
 
     return () => clearInterval(interval);
-  }, [isAutoPlaying, autoPlayInterval, nextSlide]);
+  }, [isAutoPlaying, autoPlayInterval, nextSlide, images.length]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -104,18 +106,20 @@ const HeroCarousel = ({
         </div>
       )}
 
-      {/* Custom Dot Indicators */}
-      <div className="absolute bottom-8 left-0 right-0 z-20 flex items-center justify-center gap-2">
-        {images.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`transition-all duration-300 ${index === currentIndex ? "w-6 h-2 bg-accent rounded-full" : "w-2 h-2 bg-white/60 hover:bg-white/80 rounded-full"}`}
-            aria-label={`Go to slide ${index + 1}`}
-            aria-current={index === currentIndex}
-          />
-        ))}
-      </div>
+      {/* Custom Dot Indicators - only show if more than 1 image */}
+      {images.length > 1 && (
+        <div className="absolute bottom-8 left-0 right-0 z-20 flex items-center justify-center gap-2">
+          {images.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className={`transition-all duration-300 ${index === currentIndex ? "w-6 h-2 bg-accent rounded-full" : "w-2 h-2 bg-white/60 hover:bg-white/80 rounded-full"}`}
+              aria-label={`Go to slide ${index + 1}`}
+              aria-current={index === currentIndex}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Scroll Indicator */}
       {showScrollIndicator && (

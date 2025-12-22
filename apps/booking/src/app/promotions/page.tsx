@@ -5,10 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import UniversalHero from "@/components/UniversalHero";
+import HeroCarousel from "@/components/HeroCarousel";
 import SEO from "@/components/SEO";
-import luxuryHero from "@/assets/promotions-hero.jpg";
 import { Button } from "@/components/ui/button";
+
+// Hero carousel images - hardcoded for all tenants
+const promotionsHeroImages = [
+  '/carousel-images/car5.jpeg',     //car5
+  '/carousel-images/car9.jpeg',     //car5
+  '/carousel-images/car7.jpeg',    //car7
+  '/carousel-images/car2.jpeg',    //car2
+  '/carousel-images/car3.jpeg',    //car3
+];
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -174,28 +182,52 @@ const Promotions = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <Navigation />
 
-        <UniversalHero
-          headline={<>{content.promotions_hero?.headline || "Promotions & Offers"}</>}
-          subheading={content.promotions_hero?.subheading || "Exclusive rental offers with transparent savings."}
-          backgroundImage={content.promotions_hero?.background_image || luxuryHero}
-          backgroundAlt="Drive 917 luxury car rental promotions"
-          overlayStrength="medium"
-          primaryCTA={{
-            text: content.promotions_hero?.primary_cta_text || "View Fleet & Pricing",
-            href: content.promotions_hero?.primary_cta_href || "/fleet"
-          }}
-          secondaryCTA={{
-            text: content.promotions_hero?.secondary_cta_text || "Book Now",
-            onClick: () => {
-              const bookingSection = document.getElementById("booking");
-              if (bookingSection) {
-                bookingSection.scrollIntoView({ behavior: "smooth" });
-              } else {
-                window.location.href = "/#booking";
-              }
-            }
-          }}
-        />
+        {/* Hero Section with Carousel */}
+        <section className="relative min-h-screen">
+          <HeroCarousel
+            images={promotionsHeroImages}
+            autoPlayInterval={5000}
+            overlayStrength="medium"
+            showScrollIndicator={true}
+            className="min-h-screen"
+          >
+            {/* Hero Content */}
+            <div className="flex items-center justify-center min-h-screen pt-20">
+              <div className="container mx-auto px-4">
+                <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
+                  {/* Headline */}
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold text-white leading-tight [text-wrap:balance]">
+                    {content.promotions_hero?.headline || 'Promotions & Offers'}
+                  </h1>
+
+                  {/* Subheadline */}
+                  <p className="text-lg md:text-xl lg:text-2xl text-white/90 max-w-3xl mx-auto font-light leading-relaxed">
+                    {content.promotions_hero?.subheading || 'Exclusive rental offers with transparent savings.'}
+                  </p>
+
+                  {/* CTA Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+                    <a href={content.promotions_hero?.primary_cta_href || "/fleet"}>
+                      <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base md:text-lg px-8 py-6 rounded-md shadow-glow hover:shadow-glow transition-all">
+                        {content.promotions_hero?.primary_cta_text || 'View Fleet & Pricing'}
+                      </Button>
+                    </a>
+                    <a href="/#booking">
+                      <Button size="lg" variant="outline" className="bg-transparent border-2 border-white text-white hover:bg-white/10 hover:border-white font-semibold text-base md:text-lg px-8 py-6 rounded-md transition-all">
+                        {content.promotions_hero?.secondary_cta_text || 'Book Now'}
+                      </Button>
+                    </a>
+                  </div>
+
+                  {/* Trust Line */}
+                  <p className="text-sm md:text-base text-white/80 font-medium pt-4">
+                    {content.promotions_hero?.trust_line || 'Exclusive Deals • Limited Time • Save Big'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </HeroCarousel>
+        </section>
 
         <main className="flex-1">
           {/* Filters */}

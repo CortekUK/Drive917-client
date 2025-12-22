@@ -36,7 +36,7 @@ const Footer = () => {
               />
             ) : (
               <>
-                <h3 className="text-xl font-display font-bold text-white mb-2">
+                <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-wide">
                   {settings.company_name || "Drive917"}
                 </h3>
                 <div className="w-12 h-[2px] mb-4" style={{ backgroundColor: 'hsl(var(--accent))' }}></div>

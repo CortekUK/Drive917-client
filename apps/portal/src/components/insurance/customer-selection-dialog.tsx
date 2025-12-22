@@ -63,7 +63,7 @@ export function CustomerSelectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Select Customer</DialogTitle>
           <DialogDescription>
@@ -84,7 +84,7 @@ export function CustomerSelectionDialog({
           </div>
 
           {/* Customer List */}
-          <ScrollArea className="h-[400px] border rounded-lg">
+          <ScrollArea className="h-[350px] border rounded-lg">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-muted-foreground">Searching customers...</div>
@@ -104,30 +104,30 @@ export function CustomerSelectionDialog({
                   <Button
                     key={customer.id}
                     variant="ghost"
-                    className="w-full h-auto p-4 justify-start"
+                    className="w-full h-auto p-3 justify-start hover:bg-accent"
                     onClick={() => handleSelectCustomer(customer.id)}
                   >
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="p-2 bg-primary/10 rounded-full">
+                    <div className="flex items-center gap-3 w-full min-w-0">
+                      <div className="p-2 bg-primary/10 rounded-full shrink-0">
                         <User className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="flex-1 text-left">
-                        <div className="font-medium">{customer.name}</div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                      <div className="flex-1 text-left min-w-0 overflow-hidden">
+                        <div className="font-medium truncate">{customer.name}</div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mt-1">
                           {customer.email && (
-                            <div className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              <span>{customer.email}</span>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate max-w-[180px]">{customer.email}</span>
                             </div>
                           )}
                           {customer.phone && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 shrink-0">
                               <Phone className="h-3 w-3" />
                               <span>{customer.phone}</span>
                             </div>
                           )}
                           {customer.customer_type && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs shrink-0">
                               {customer.customer_type}
                             </Badge>
                           )}

@@ -283,7 +283,7 @@ export default function InsuranceListEnhanced() {
       {/* Policies Table */}
       <Card>
         <CardContent className="p-0">
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

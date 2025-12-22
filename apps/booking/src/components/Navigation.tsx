@@ -41,13 +41,13 @@ const Navigation = () => {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b shadow-metal py-3 h-[72px]"
+      className="fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b shadow-metal "
       style={{ backgroundColor: 'hsl(var(--nav-bg))', borderColor: 'hsl(var(--nav-bg))' }}
     >
       <div className="container mx-auto px-2 lg:px-4">
         <div className="flex items-center w-full justify-between gap-2 lg:gap-4 xl:gap-8">
           {/* Logo/Branding - Left */}
-          <Link href="/" className="flex items-center gap-2 lg:gap-3 flex-shrink-0 group">
+          <Link href="/" className="flex items-center gap-2 lg:gap-3 flex-shrink-0 group py-1">
             {settings.logo_url ? (
               <img
                 src={settings.logo_url}
@@ -55,9 +55,9 @@ const Navigation = () => {
                 className="h-14 lg:h-16 w-32 object-cover"
               />
             ) : (
-              <div className="flex flex-col">
+              <div className="flex flex-col py-4 ">
                 <span
-                  className="text-base lg:text-lg xl:text-2xl font-luxury font-semibold leading-tight whitespace-nowrap tracking-wide"
+                  className="text-base lg:text-lg xl:text-2xl font-luxury font-semibold leading-tight whitespace-nowrap tracking-wide uppercase"
                   style={{ color: 'hsl(var(--nav-foreground))' }}
                 >
                   {settings.company_name || 'Drive917'}

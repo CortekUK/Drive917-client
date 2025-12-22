@@ -91,11 +91,7 @@ export function AppSidebar() {
     name: "Promotions",
     href: "/promotions",
     icon: Crown
-  }, {
-    name: "Insurance",
-    href: "/insurance",
-    icon: Shield
-  }, {
+  },  {
     name: "Blocked Dates",
     href: "/blocked-dates",
     icon: Ban
