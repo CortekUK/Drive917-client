@@ -189,25 +189,53 @@ const RentalDetail = () => {
   });
 
   // Fetch identity verification for this customer
-  const { data: identityVerification } = useQuery({
-    queryKey: ["customer-identity-verification", rental?.customers?.id],
+  const { data: identityVerification, isLoading: isLoadingVerification } = useQuery({
+    queryKey: ["customer-identity-verification", rental?.customers?.id, tenant?.id],
     queryFn: async () => {
       if (!rental?.customers?.id) return null;
 
-      const { data, error } = await supabase
+      console.log('Fetching identity verification for customer:', rental.customers.id);
+
+      // First try to find by customer_id
+      let query = supabase
         .from("identity_verifications")
         .select("*")
         .eq("customer_id", rental.customers.id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         console.error("Error fetching identity verification:", error);
         return null;
       }
 
-      return data;
+      if (data) {
+        console.log('Found identity verification:', data.id, 'status:', data.review_result);
+        return data;
+      }
+
+      // If not found by customer_id, try by tenant_id (for unlinked records)
+      if (tenant?.id) {
+        console.log('No verification by customer_id, checking tenant records...');
+        const { data: tenantData } = await supabase
+          .from("identity_verifications")
+          .select("*")
+          .eq("tenant_id", tenant.id)
+          .is("customer_id", null)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (tenantData && tenantData.length > 0) {
+          console.log('Found unlinked verifications:', tenantData.length);
+          // Return the most recent one for now
+          return tenantData[0];
+        }
+      }
+
+      console.log('No identity verification found for customer');
+      return null;
     },
     enabled: !!rental?.customers?.id,
   });
@@ -1044,8 +1072,7 @@ const RentalDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Identity Verification Section - Show if verification data exists */}
-      {identityVerification && (
+      {/* Identity Verification Section - Always show */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1242,9 +1269,27 @@ const RentalDetail = () => {
               )}
             </div>
           )}
+
+          {/* Empty state when no verification data */}
+          {!identityVerification && !isLoadingVerification && (
+            <div className="text-center py-8 text-muted-foreground">
+              <UserCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No identity verification found</p>
+              <p className="text-sm mt-1">
+                This customer hasn't completed Veriff identity verification yet, or the verification is not linked to this customer.
+              </p>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isLoadingVerification && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin" />
+              <p className="text-sm">Loading verification data...</p>
+            </div>
+          )}
         </CardContent>
       </Card>
-      )}
 
       {/* Key Handover Section */}
       {id && <KeyHandoverSection rentalId={id} rentalStatus={displayStatus} />}
