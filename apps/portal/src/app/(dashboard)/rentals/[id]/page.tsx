@@ -851,7 +851,22 @@ const RentalDetail = () => {
                           getScoreBadge(doc.ai_validation_score)
                         )}
                         {doc.ai_scan_status === 'pending' && (
-                          <Badge variant="outline">Pending Scan</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">Pending Scan</Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => retryScanMutation.mutate(doc.id)}
+                              disabled={retryScanMutation.isPending}
+                              title="Start AI scan"
+                            >
+                              {retryScanMutation.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
                         )}
                         {doc.ai_scan_status === 'processing' && (
                           <div className="flex items-center gap-2">
