@@ -91,6 +91,7 @@ export function useReminders(filters?: ReminderFilters) {
 
       return sortedData;
     },
+    enabled: !!tenant,
   });
 }
 
@@ -126,6 +127,7 @@ export function useRemindersByObject(objectType: string, objectId: string) {
 
       return sortedData;
     },
+    enabled: !!tenant && !!objectId,
   });
 }
 
@@ -202,6 +204,7 @@ export function useReminderStats() {
         snoozed: snoozedTotal
       };
     },
+    enabled: !!tenant,
     staleTime: 30 * 1000, // Cache for 30 seconds
     refetchInterval: 60 * 1000, // Refetch every minute
   });
