@@ -710,7 +710,7 @@ const RentalDetail = () => {
                           .insert({
                             customer_id: rental.customer_id,
                             rental_id: id,
-                            document_type: 'insurance',
+                            document_type: 'Insurance Certificate',
                             document_name: file.name,
                             file_name: file.name,
                             file_url: fileName,
