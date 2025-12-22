@@ -82,6 +82,68 @@ serve(async (req) => {
               })
               .eq("id", paymentId);
           }
+
+          // Send booking pending notification emails
+          try {
+            // Get rental details with customer and vehicle info
+            const { data: rental } = await supabase
+              .from("rentals")
+              .select(`
+                id,
+                start_date,
+                end_date,
+                monthly_amount,
+                tenant_id,
+                customer:customers(id, name, email, phone),
+                vehicle:vehicles(id, make, model, reg)
+              `)
+              .eq("id", rentalId)
+              .single();
+
+            if (rental && rental.customer && rental.vehicle) {
+              const vehicleName = rental.vehicle.make && rental.vehicle.model
+                ? `${rental.vehicle.make} ${rental.vehicle.model}`
+                : rental.vehicle.reg;
+
+              const notificationData = {
+                paymentId: paymentId || '',
+                rentalId: rentalId,
+                customerId: rental.customer.id,
+                customerName: rental.customer.name,
+                customerEmail: rental.customer.email,
+                customerPhone: rental.customer.phone,
+                vehicleName: vehicleName,
+                vehicleReg: rental.vehicle.reg,
+                pickupDate: new Date(rental.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                returnDate: new Date(rental.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                amount: rental.monthly_amount || (session.amount_total ? session.amount_total / 100 : 0),
+                bookingRef: rentalId.substring(0, 8).toUpperCase(),
+              };
+
+              console.log("Sending booking pending notification:", notificationData.bookingRef);
+
+              const notifyResponse = await fetch(
+                `${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-booking-pending`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                  },
+                  body: JSON.stringify(notificationData),
+                }
+              );
+
+              if (notifyResponse.ok) {
+                console.log("Booking notification sent successfully");
+              } else {
+                console.error("Failed to send booking notification:", await notifyResponse.text());
+              }
+            }
+          } catch (notifyError) {
+            console.error("Error sending booking notification:", notifyError);
+            // Don't fail the webhook for notification errors
+          }
         } else {
           // Auto mode: Payment was captured, activate rental
           console.log("Auto checkout completed, activating rental:", rentalId);

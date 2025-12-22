@@ -697,7 +697,8 @@ const MultiStepBookingWidget = () => {
         end_date: formData.dropoffDate || formData.pickupDate,
         monthly_amount: priceBreakdown?.totalPrice || 0,
         notes: formData.specialRequests || null,
-        status: "Pending"
+        status: "Pending",
+        source: "booking"
       };
 
       // Add tenant_id if tenant context exists
@@ -2639,9 +2640,9 @@ const MultiStepBookingWidget = () => {
                             </div>
                           </div>
                           <div className="pt-1">
-                            <h6 className="font-semibold mb-1">Upload or Continue</h6>
+                            <h6 className="font-semibold mb-1">Upload Certificate</h6>
                             <p className="text-sm text-muted-foreground">
-                              Upload your certificate here, or proceed with your booking and upload later
+                              Upload your insurance certificate here to continue with your booking
                             </p>
                           </div>
                         </div>
@@ -2674,10 +2675,32 @@ const MultiStepBookingWidget = () => {
                           Go Back
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground max-w-md mx-auto pt-4 border-t border-border/50">
-                        <AlertCircle className="w-4 h-4 inline mr-1" />
-                        You can upload your insurance certificate after completing your booking if you prefer
-                      </p>
+                    </div>
+
+                    {/* Upload Section - After getting insurance from Bonzah */}
+                    <div className="border-t border-border/50 pt-8">
+                      <div className="text-center space-y-4">
+                        <h5 className="text-lg font-semibold">Already purchased from Bonzah?</h5>
+                        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                          Upload your insurance certificate to continue with your booking
+                        </p>
+                        {uploadedDocumentId ? (
+                          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                            <CheckCircle className="w-5 h-5 text-primary" />
+                            <span className="text-sm font-medium text-primary">Certificate uploaded successfully</span>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => setShowUploadDialog(true)}
+                            size="lg"
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary/10"
+                          >
+                            <Upload className="mr-2 h-5 w-5" />
+                            Upload Insurance Certificate
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -2696,13 +2719,20 @@ const MultiStepBookingWidget = () => {
               </Button>
               <Button
                 onClick={handleStep3Continue}
-                disabled={hasInsurance === null}
+                disabled={!uploadedDocumentId}
                 className="w-full sm:flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50"
                 size="lg"
               >
                 Continue to Details <ChevronRight className="ml-2 w-5 h-5" />
               </Button>
             </div>
+            {/* Requirement notice */}
+            {!uploadedDocumentId && (
+              <p className="text-center text-sm text-muted-foreground">
+                <AlertCircle className="w-4 h-4 inline mr-1" />
+                Please upload your insurance certificate to continue
+              </p>
+            )}
           </div>}
 
         {/* Step 4: Customer Details */}
@@ -3024,27 +3054,29 @@ const MultiStepBookingWidget = () => {
     <InsuranceUploadDialog
       open={showUploadDialog}
       onOpenChange={setShowUploadDialog}
-      onUploadComplete={async (documentId) => {
-        // documentId is the database record ID
+      onUploadComplete={async (documentId, fileUrl) => {
+        // documentId is the database record ID, fileUrl is the storage path
         setUploadedDocumentId(documentId);
         setScanningDocument(true);
         setShowUploadDialog(false);
 
-        // Trigger document review
+        // Trigger AI document review
         try {
-          const { error } = await supabase.functions.invoke('scan-insurance-document', {
-            body: { documentId, fileUrl: documentId }
+          const { data, error } = await supabase.functions.invoke('scan-insurance-document', {
+            body: { documentId, fileUrl }
           });
 
           if (error) {
             console.error('Document review error:', error);
-            toast.error("Document uploaded but review failed. You can continue with your booking.");
+            toast.success("Document uploaded! It will be reviewed by our team.");
+          } else if (data?.data?.requiresManualReview) {
+            toast.success("Document uploaded! It will be reviewed by our team.");
           } else {
-            toast.success("Insurance document uploaded! Our team is reviewing it now...");
+            toast.success("Insurance document verified successfully!");
           }
         } catch (error) {
           console.error('Document review error:', error);
-          toast.error("Document uploaded but review failed. You can continue with your booking.");
+          toast.success("Document uploaded! It will be reviewed by our team.");
         } finally {
           setScanningDocument(false);
         }

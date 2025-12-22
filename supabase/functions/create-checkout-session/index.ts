@@ -21,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    const { bookingId, rentalId, customerEmail, customerName, totalAmount, tenantSlug } = await req.json()
+    const { bookingId, rentalId, customerEmail, customerName, totalAmount, tenantSlug, tenantId: bodyTenantId } = await req.json()
 
     // Get tenant slug from header or body
     const slug = tenantSlug || req.headers.get('x-tenant-slug')
@@ -38,11 +38,12 @@ serve(async (req) => {
     )
 
     // Fetch tenant details for customization
-    let tenantId: string | null = null
+    let tenantId: string | null = bodyTenantId || null
     let companyName = 'Drive 917'
     let currencyCode = 'usd'
     let stripeAccountId: string | null = null
 
+    // Try to get tenant by slug first, then by ID, then from rental
     if (slug) {
       const { data: tenant, error: tenantError } = await supabaseClient
         .from('tenants')
@@ -59,9 +60,57 @@ serve(async (req) => {
         // Only use Stripe Connect if tenant has completed onboarding
         if (tenant.stripe_account_id && tenant.stripe_onboarding_complete) {
           stripeAccountId = tenant.stripe_account_id
+          console.log('Using Stripe Connect account from slug:', stripeAccountId)
+        }
+      }
+    } else if (tenantId) {
+      // Lookup tenant by ID if slug not provided
+      const { data: tenant, error: tenantError } = await supabaseClient
+        .from('tenants')
+        .select('id, company_name, currency_code, stripe_account_id, stripe_onboarding_complete')
+        .eq('id', tenantId)
+        .eq('status', 'active')
+        .single()
+
+      if (tenant && !tenantError) {
+        companyName = tenant.company_name || companyName
+        currencyCode = (tenant.currency_code || 'USD').toLowerCase()
+
+        if (tenant.stripe_account_id && tenant.stripe_onboarding_complete) {
+          stripeAccountId = tenant.stripe_account_id
+          console.log('Using Stripe Connect account from tenantId:', stripeAccountId)
+        }
+      }
+    } else if (rentalId) {
+      // Fallback: get tenant from rental
+      const { data: rental } = await supabaseClient
+        .from('rentals')
+        .select('tenant_id')
+        .eq('id', rentalId)
+        .single()
+
+      if (rental?.tenant_id) {
+        tenantId = rental.tenant_id
+
+        const { data: tenant } = await supabaseClient
+          .from('tenants')
+          .select('company_name, currency_code, stripe_account_id, stripe_onboarding_complete')
+          .eq('id', tenantId)
+          .single()
+
+        if (tenant) {
+          companyName = tenant.company_name || companyName
+          currencyCode = (tenant.currency_code || 'USD').toLowerCase()
+
+          if (tenant.stripe_account_id && tenant.stripe_onboarding_complete) {
+            stripeAccountId = tenant.stripe_account_id
+            console.log('Using Stripe Connect account from rental:', stripeAccountId)
+          }
         }
       }
     }
+
+    console.log('Checkout session - tenantId:', tenantId, 'stripeAccountId:', stripeAccountId)
 
     // Create Stripe Checkout Session
     const sessionConfig: any = {

@@ -56,8 +56,25 @@ export const usePaymentsData = ({
 }: UsePaymentsDataOptions) => {
   const { tenant } = useTenant();
 
+  // Create a stable query key by serializing Date objects to strings
+  const stableQueryKey = [
+    "payments-data",
+    tenant?.id,
+    filters.customerSearch,
+    filters.vehicleSearch,
+    filters.method,
+    filters.verificationStatus,
+    filters.dateFrom?.toISOString(),
+    filters.dateTo?.toISOString(),
+    filters.quickFilter,
+    sortBy,
+    sortOrder,
+    page,
+    pageSize
+  ];
+
   return useQuery({
-    queryKey: ["payments-data", tenant?.id, filters, sortBy, sortOrder, page, pageSize],
+    queryKey: stableQueryKey,
     queryFn: async () => {
       if (!tenant) throw new Error("No tenant context available");
 
@@ -158,6 +175,8 @@ export const usePaymentsData = ({
       };
     },
     enabled: !!tenant,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: false,
   });
 };
 

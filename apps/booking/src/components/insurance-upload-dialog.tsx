@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUploadComplete: (documentId: string) => void;
+  onUploadComplete: (documentId: string, fileUrl: string) => void;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -114,6 +114,7 @@ export default function InsuranceUploadDialog({ open, onOpenChange, onUploadComp
         : {};
 
       const uploadedDocIds: string[] = [];
+      const uploadedFilePaths: string[] = [];
 
       // Upload each file
       for (const file of files) {
@@ -146,7 +147,7 @@ export default function InsuranceUploadDialog({ open, onOpenChange, onUploadComp
           name: 'Pending Booking',
           email: uniqueEmail,
           phone: '0000000000',
-          customer_type: 'Individual'
+          type: 'Individual'
         };
 
         if (tenant?.id) {
@@ -204,12 +205,13 @@ export default function InsuranceUploadDialog({ open, onOpenChange, onUploadComp
         localStorage.setItem('pending_insurance_docs', JSON.stringify(existingDocs));
 
         uploadedDocIds.push(docData.id);
+        uploadedFilePaths.push(filePath);
       }
 
       toast.success(`${files.length} document(s) uploaded successfully!`);
 
-      // Return first document ID for AI scanning
-      onUploadComplete(uploadedDocIds[0]);
+      // Return first document ID and file path for AI scanning
+      onUploadComplete(uploadedDocIds[0], uploadedFilePaths[0]);
 
       // Reset state
       setFiles([]);

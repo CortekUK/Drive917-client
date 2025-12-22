@@ -295,7 +295,7 @@ const RentalsList = () => {
                         <TableCell>
                           <Button
                             variant="link"
-                            className="p-0 h-auto font-medium text-primary"
+                            className="p-0 h-auto font-medium"
                             onClick={() => router.push(`/rentals/${rental.id}`)}
                           >
                             {rental.rental_number}

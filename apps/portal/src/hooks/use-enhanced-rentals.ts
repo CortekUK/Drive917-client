@@ -74,8 +74,27 @@ export const useEnhancedRentals = (filters: RentalFilters = {}) => {
     pageSize = ITEMS_PER_PAGE
   } = filters;
 
+  // Create a stable query key by serializing Date objects to strings
+  const stableQueryKey = [
+    "enhanced-rentals",
+    tenant?.id,
+    search,
+    status,
+    customerType,
+    duration,
+    durationMin,
+    durationMax,
+    initialPayment,
+    startDateFrom?.toISOString(),
+    startDateTo?.toISOString(),
+    sortBy,
+    sortOrder,
+    page,
+    pageSize
+  ];
+
   return useQuery({
-    queryKey: ["enhanced-rentals", tenant?.id, filters],
+    queryKey: stableQueryKey,
     queryFn: async () => {
       if (!tenant) throw new Error("No tenant context available");
 
@@ -142,6 +161,7 @@ export const useEnhancedRentals = (filters: RentalFilters = {}) => {
           const computedStatus = getRentalStatus(rental.start_date, rental.end_date, rental.status);
           const initialPaymentAmount = initialPaymentMap.get(rental.id) || null;
           const totalAmount = rental.monthly_amount;
+          const protectionCost = 0; // Protection cost not stored separately in current schema
 
           return {
             id: rental.id,
@@ -224,5 +244,7 @@ export const useEnhancedRentals = (filters: RentalFilters = {}) => {
       };
     },
     enabled: !!tenant,
+    staleTime: 30000, // Consider data fresh for 30 seconds to prevent excessive refetches
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 };

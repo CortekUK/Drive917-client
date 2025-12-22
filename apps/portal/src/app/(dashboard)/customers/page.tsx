@@ -681,7 +681,7 @@ const CustomersList = () => {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => router.push(`/customers/${customer.id}`)}
-                              className="font-bold text-primary hover:underline text-left"
+                              className="font-bold text-foreground hover:underline hover:opacity-80 text-left"
                             >
                               {customer.name}
                             </button>

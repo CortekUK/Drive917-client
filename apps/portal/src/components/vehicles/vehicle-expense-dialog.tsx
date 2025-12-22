@@ -24,7 +24,7 @@ export const VehicleExpenseDialog = ({ onSubmit, isLoading }: VehicleExpenseDial
     defaultValues: {
       expense_date: new Date().toISOString().split('T')[0],
       category: 'Other',
-      amount: 0,
+      amount: undefined,
       notes: "",
       reference: "",
     },
@@ -100,12 +100,13 @@ export const VehicleExpenseDialog = ({ onSubmit, isLoading }: VehicleExpenseDial
                 <FormItem>
                   <FormLabel>Amount ($)</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
+                    <Input
+                      type="number"
                       step="0.01"
-                      placeholder="0.00" 
+                      placeholder="0.00"
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />

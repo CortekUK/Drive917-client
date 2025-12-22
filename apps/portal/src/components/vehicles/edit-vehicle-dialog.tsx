@@ -183,14 +183,18 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
     }
   };
 
+  const isControlled = open !== undefined;
+
   return (
     <Dialog open={currentOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Vehicle
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Vehicle
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[750px] max-h-[85vh] flex flex-col">
         <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4">
           <DialogTitle className="flex items-center gap-2">
@@ -200,9 +204,9 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
-            <ScrollArea className="h-[60vh] px-8">
-              <div className="space-y-4 pr-6 py-2">
-                <div className="grid grid-cols-2 gap-4 ml-3">
+            <ScrollArea className="h-[60vh] px-4">
+              <div className="space-y-4 px-2 py-2">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="reg"
@@ -260,7 +264,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 ml-3">
+                <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="make"
@@ -318,7 +322,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 ml-3">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="colour"
@@ -378,7 +382,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 ml-3">
+                <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="daily_rent"
@@ -467,7 +471,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 ml-3">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="mot_due_date"
@@ -549,7 +553,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 ml-3">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="warranty_start_date"
@@ -685,7 +689,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
                 )}
 
                 {/* Compliance Section */}
-                <div className="space-y-4 ml-3">
+                <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5 text-primary" />
                     Compliance
@@ -806,7 +810,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange }: EditVehicleDi
                 </div>
 
                 {/* Security Section */}
-                <div className="space-y-4 ml-3">
+                <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <KeyRound className="h-5 w-5 text-primary" />
                     Security Features

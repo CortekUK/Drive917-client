@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileText, ArrowLeft, PoundSterling, Plus, X, Send, Download, Ban, Check, AlertTriangle, Loader2 } from "lucide-react";
+import { FileText, ArrowLeft, PoundSterling, Plus, X, Send, Download, Ban, Check, AlertTriangle, Loader2, Shield, CheckCircle, XCircle, ExternalLink, UserCheck, IdCard, Camera, FileSignature, Clock, Mail } from "lucide-react";
 import { AddPaymentDialog } from "@/components/shared/dialogs/add-payment-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/TenantContext";
@@ -31,7 +31,9 @@ interface Rental {
   computed_status?: string;
   document_status?: string;
   signed_document_id?: string;
-  customers: { id: string; name: string };
+  insurance_status?: string;
+  customer_id?: string;
+  customers: { id: string; name: string; email?: string };
   vehicles: { id: string; reg: string; make: string; model: string };
 }
 
@@ -55,7 +57,7 @@ const RentalDetail = () => {
         .from("rentals")
         .select(`
           *,
-          customers(id, name),
+          customers(id, name, email),
           vehicles(id, reg, make, model)
         `)
         .eq("id", id)
@@ -127,20 +129,165 @@ const RentalDetail = () => {
   });
 
   // Fetch insurance documents with AI scanning results
-  const { data: insuranceDocuments } = useQuery({
-    queryKey: ["rental-insurance-docs", id],
+  // Documents may be linked by rental_id, customer_id, or still be unlinked (from temp customers)
+  const { data: insuranceDocuments, data: unlinkedDocs } = useQuery({
+    queryKey: ["rental-insurance-docs", id, rental?.customers?.id, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customer_documents")
-        .select("*")
-        .eq("rental_id", id)
-        .eq("document_type", "Insurance Certificate")
-        .order("uploaded_at", { ascending: false });
+      const results: any[] = [];
 
-      if (error && error.code !== 'PGRST116') throw error;
-      return data || [];
+      // First try to find by rental_id (direct link)
+      if (tenant?.id) {
+        const { data: rentalDocs } = await supabase
+          .from("customer_documents")
+          .select("*")
+          .eq("rental_id", id)
+          .eq("document_type", "Insurance Certificate")
+          .eq("tenant_id", tenant.id)
+          .order("uploaded_at", { ascending: false });
+
+        if (rentalDocs && rentalDocs.length > 0) {
+          return rentalDocs;
+        }
+      }
+
+      // Try by customer_id
+      if (rental?.customers?.id && tenant?.id) {
+        const { data: customerDocs } = await supabase
+          .from("customer_documents")
+          .select("*")
+          .eq("customer_id", rental.customers.id)
+          .eq("document_type", "Insurance Certificate")
+          .eq("tenant_id", tenant.id)
+          .order("uploaded_at", { ascending: false });
+
+        if (customerDocs && customerDocs.length > 0) {
+          return customerDocs;
+        }
+      }
+
+      // Fallback: Show all unlinked insurance documents for this tenant
+      // These may be orphaned from bookings where the linking failed
+      if (tenant?.id) {
+        const { data: unlinkedDocs } = await supabase
+          .from("customer_documents")
+          .select("*, customers:customer_id(email)")
+          .eq("document_type", "Insurance Certificate")
+          .eq("tenant_id", tenant.id)
+          .is("rental_id", null)
+          .order("uploaded_at", { ascending: false })
+          .limit(10);
+
+        // Mark these as unlinked so UI can show appropriate message
+        if (unlinkedDocs && unlinkedDocs.length > 0) {
+          return unlinkedDocs.map(doc => ({ ...doc, isUnlinked: true }));
+        }
+      }
+
+      return [];
     },
-    enabled: !!id,
+    enabled: !!id && !!tenant?.id,
+  });
+
+  // Fetch identity verification for this customer
+  const { data: identityVerification } = useQuery({
+    queryKey: ["customer-identity-verification", rental?.customers?.id],
+    queryFn: async () => {
+      if (!rental?.customers?.id) return null;
+
+      const { data, error } = await supabase
+        .from("identity_verifications")
+        .select("*")
+        .eq("customer_id", rental.customers.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching identity verification:", error);
+        return null;
+      }
+
+      return data;
+    },
+    enabled: !!rental?.customers?.id,
+  });
+
+  // Mutation for approving insurance document
+  const approveInsuranceMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      let query = supabase
+        .from("customer_documents")
+        .update({
+          verified: true,
+          status: "Approved",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", documentId);
+
+      if (tenant?.id) {
+        query = query.eq("tenant_id", tenant.id);
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rental-insurance-docs", id] });
+      toast({
+        title: "Insurance Approved",
+        description: "The insurance document has been approved.",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Approve error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to approve insurance document.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Rejecting insurance = rejecting the booking
+  // Just open the rejection dialog directly
+  const handleRejectInsurance = () => {
+    setShowRejectionDialog(true);
+  };
+
+  // Mutation for linking unlinked document to this rental
+  const linkDocumentMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      let query = supabase
+        .from("customer_documents")
+        .update({
+          rental_id: id,
+          customer_id: rental?.customers?.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", documentId);
+
+      if (tenant?.id) {
+        query = query.eq("tenant_id", tenant.id);
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rental-insurance-docs", id] });
+      toast({
+        title: "Document Linked",
+        description: "The insurance document has been linked to this rental.",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Link error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to link insurance document.",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -204,47 +351,6 @@ const RentalDetail = () => {
               <Button variant="outline" onClick={() => setShowAddPayment(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Payment
-              </Button>
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  setSendingDocuSign(true);
-                  try {
-                    // Send DocuSign
-                    const { data: docuSignData, error: docuSignError } = await supabase.functions.invoke('create-docusign-envelope', {
-                      body: {
-                        rentalId: id,
-                      }
-                    });
-
-                    if (docuSignError || !docuSignData?.ok) {
-                      console.error('DocuSign error:', docuSignError || docuSignData);
-                      toast({
-                        title: "DocuSign Error",
-                        description: docuSignData?.detail || docuSignError?.message || "Failed to send DocuSign agreement.",
-                        variant: "destructive",
-                      });
-                    } else {
-                      toast({
-                        title: "DocuSign Sent",
-                        description: "Rental agreement has been sent via DocuSign",
-                      });
-                    }
-                  } catch (error: any) {
-                    console.error('Error sending DocuSign:', error);
-                    toast({
-                      title: "DocuSign Error",
-                      description: error?.message || "Failed to send DocuSign agreement",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setSendingDocuSign(false);
-                  }
-                }}
-                disabled={sendingDocuSign}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                {sendingDocuSign ? "Sending..." : "Send DocuSign"}
               </Button>
               <Button
                 variant="outline"
@@ -372,7 +478,7 @@ const RentalDetail = () => {
       </div>
 
       {/* Rental Summary */}
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Total Charges</CardTitle>
@@ -406,18 +512,7 @@ const RentalDetail = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant={getStatusVariant(displayStatus)} className="text-lg px-3 py-1">
-              {displayStatus}
-            </Badge>
-          </CardContent>
-        </Card>
-
-      </div>
+        </div>
 
       {/* Rental Details */}
       <Card>
@@ -467,41 +562,227 @@ const RentalDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Insurance Documents Card */}
-      {insuranceDocuments && insuranceDocuments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-blue-600" />
-              Insurance Documents
-            </CardTitle>
-            <CardDescription>
-              AI-verified insurance certificates uploaded by the customer
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {insuranceDocuments.map((doc: any) => {
-                const validationScore = doc.ai_validation_score || 0;
-                const extractedData = doc.ai_extracted_data || {};
+      {/* DocuSign Agreement Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileSignature className="h-5 w-5 text-blue-600" />
+            Rental Agreement
+          </CardTitle>
+          <CardDescription>
+            DocuSign rental agreement status and signed document
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Status Badge */}
+              {rental.document_status === 'signed' || rental.signed_document_id ? (
+                <Badge className="bg-green-600">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Signed
+                </Badge>
+              ) : rental.document_status === 'sent' ? (
+                <Badge className="bg-yellow-600">
+                  <Mail className="h-3 w-3 mr-1" />
+                  Sent - Awaiting Signature
+                </Badge>
+              ) : rental.document_status === 'viewed' ? (
+                <Badge className="bg-blue-600">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Viewed - Awaiting Signature
+                </Badge>
+              ) : (
+                <Badge variant="outline">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Not Sent
+                </Badge>
+              )}
 
-                const getScoreBadge = (score: number) => {
-                  if (score >= 0.7) {
-                    return <Badge className="bg-green-600">Valid ({(score * 100).toFixed(0)}%)</Badge>;
-                  } else if (score >= 0.4) {
-                    return <Badge className="bg-yellow-600">Review Required ({(score * 100).toFixed(0)}%)</Badge>;
-                  } else {
-                    return <Badge className="bg-orange-600">Low Confidence ({(score * 100).toFixed(0)}%)</Badge>;
-                  }
-                };
+              {/* Info text */}
+              <span className="text-sm text-muted-foreground">
+                {rental.document_status === 'signed' || rental.signed_document_id
+                  ? 'Agreement has been signed by customer'
+                  : rental.document_status === 'sent'
+                  ? 'Waiting for customer to sign'
+                  : rental.document_status === 'viewed'
+                  ? 'Customer has viewed the agreement'
+                  : 'Agreement has not been sent yet'}
+              </span>
+            </div>
 
-                return (
-                  <div key={doc.id} className="border rounded-lg p-4 space-y-3">
+            <div className="flex gap-2">
+              {/* View Signed Document Button */}
+              {signedDocument && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const { data } = supabase.storage
+                      .from('customer-documents')
+                      .getPublicUrl(signedDocument.file_url);
+                    window.open(data.publicUrl, '_blank');
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  View Signed Agreement
+                </Button>
+              )}
+
+              {/* Send DocuSign Button - only show if not signed */}
+              {!rental.signed_document_id && displayStatus !== 'Closed' && (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setSendingDocuSign(true);
+                    try {
+                      const { data: docuSignData, error: docuSignError } = await supabase.functions.invoke('create-docusign-envelope', {
+                        body: { rentalId: id }
+                      });
+
+                      if (docuSignError || !docuSignData?.ok) {
+                        toast({
+                          title: "DocuSign Error",
+                          description: docuSignData?.detail || docuSignError?.message || "Failed to send DocuSign agreement.",
+                          variant: "destructive",
+                        });
+                      } else {
+                        toast({
+                          title: "DocuSign Sent",
+                          description: "Rental agreement has been sent via DocuSign",
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["rental", id] });
+                      }
+                    } catch (error: any) {
+                      toast({
+                        title: "DocuSign Error",
+                        description: error?.message || "Failed to send DocuSign agreement",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setSendingDocuSign(false);
+                    }
+                  }}
+                  disabled={sendingDocuSign}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sendingDocuSign ? "Sending..." : rental.document_status === 'sent' ? "Resend DocuSign" : "Send DocuSign"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Insurance Verification Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Insurance Verification
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Upload customer's insurance documents for verification</p>
+            <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*,.pdf';
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+
+                      try {
+                        toast({ title: "Uploading...", description: "Uploading insurance document" });
+
+                        const fileName = `${rental.customer_id}/${Date.now()}_${file.name}`;
+                        const { error: uploadError } = await supabase.storage
+                          .from('customer-documents')
+                          .upload(fileName, file);
+
+                        if (uploadError) throw uploadError;
+
+                        const { data: docData, error: docError } = await supabase
+                          .from('customer_documents')
+                          .insert({
+                            customer_id: rental.customer_id,
+                            rental_id: id,
+                            document_type: 'insurance',
+                            document_name: file.name,
+                            file_name: file.name,
+                            file_url: fileName,
+                            status: 'Pending',
+                            ai_scan_status: 'pending',
+                            tenant_id: tenant?.id,
+                          })
+                          .select()
+                          .single();
+
+                        if (docError) throw docError;
+
+                        // Trigger AI scan with documentId and fileUrl
+                        supabase.functions.invoke('scan-insurance-document', {
+                          body: { documentId: docData.id, fileUrl: fileName }
+                        });
+
+                        toast({ title: "Success", description: "Insurance document uploaded and AI scan initiated" });
+                        queryClient.invalidateQueries({ queryKey: ["rental", id] });
+                        queryClient.invalidateQueries({ queryKey: ["insurance-documents"] });
+                      } catch (error: any) {
+                        toast({
+                          title: "Upload Failed",
+                          description: error.message || "Failed to upload document",
+                          variant: "destructive"
+                        });
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Upload Document
+                </Button>
+          </div>
+
+          {/* Document List */}
+            {insuranceDocuments && insuranceDocuments.length > 0 ? (
+              <div className="space-y-4">
+                {insuranceDocuments.map((doc: any) => {
+                  const validationScore = doc.ai_validation_score || 0;
+                  const extractedData = doc.ai_extracted_data || {};
+
+                  const getScoreBadge = (score: number) => {
+                    if (score >= 0.7) {
+                      return <Badge className="bg-green-600">Valid ({(score * 100).toFixed(0)}%)</Badge>;
+                    } else if (score >= 0.4) {
+                      return <Badge className="bg-yellow-600">Review Required ({(score * 100).toFixed(0)}%)</Badge>;
+                    } else {
+                      return <Badge className="bg-orange-600">Low Confidence ({(score * 100).toFixed(0)}%)</Badge>;
+                    }
+                  };
+
+                  return (
+                    <div key={doc.id} className={`border rounded-lg p-4 space-y-3 ${doc.isUnlinked ? 'border-yellow-500/50 bg-yellow-500/5' : ''}`}>
+                      {/* Unlinked Warning */}
+                      {doc.isUnlinked && (
+                        <Alert className="mb-3 border-yellow-500/50 bg-yellow-500/10">
+                          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                          <AlertDescription className="text-sm">
+                            This document is not linked to any rental. Click "Link to Rental" to associate it with this booking.
+                          </AlertDescription>
+                        </Alert>
+                      )}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{doc.file_name || doc.document_name}</span>
+                          {doc.isUnlinked && (
+                            <Badge variant="outline" className="text-yellow-600 border-yellow-500">Unlinked</Badge>
+                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           Uploaded: {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}
@@ -580,28 +861,294 @@ const RentalDetail = () => {
                       </Alert>
                     )}
 
-                    {/* Download Button */}
-                    <div className="pt-2 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const { data } = supabase.storage
-                            .from('customer-documents')
-                            .getPublicUrl(doc.file_url);
-                          window.open(data.publicUrl, '_blank');
-                        }}
-                      >
-                        <Download className="h-3 w-3 mr-1" />
-                        View Document
-                      </Button>
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t flex items-center justify-between">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const { data } = supabase.storage
+                              .from('customer-documents')
+                              .getPublicUrl(doc.file_url);
+                            window.open(data.publicUrl, '_blank');
+                          }}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          View Document
+                        </Button>
+                        {/* Link to Rental button for unlinked documents */}
+                        {doc.isUnlinked && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-300"
+                            onClick={() => linkDocumentMutation.mutate(doc.id)}
+                            disabled={linkDocumentMutation.isPending}
+                          >
+                            {linkDocumentMutation.isPending ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            )}
+                            Link to Rental
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Approve/Reject Buttons - only show if not already approved/rejected and document is linked */}
+                      {!doc.isUnlinked && doc.status?.toLowerCase() !== 'approved' && doc.status?.toLowerCase() !== 'rejected' && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300"
+                            onClick={() => approveInsuranceMutation.mutate(doc.id)}
+                            disabled={approveInsuranceMutation.isPending}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                            onClick={handleRejectInsurance}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject Booking
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Show status badge if already approved/rejected */}
+                      {doc.status?.toLowerCase() === 'approved' && (
+                        <Badge className="bg-green-600">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Approved
+                        </Badge>
+                      )}
+                      {doc.status?.toLowerCase() === 'rejected' && (
+                        <Badge variant="destructive">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Rejected
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Shield className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No insurance documents uploaded</p>
+              <p className="text-sm">The customer hasn't uploaded insurance documents for this rental yet.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Identity Verification Section - Only show for rentals from booking flow that have verification */}
+      {identityVerification && rental?.source === 'booking' && (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserCheck className="h-5 w-5 text-purple-600" />
+            Identity Verification
+          </CardTitle>
+          <CardDescription>
+            Veriff identity verification status and documents for this customer
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {identityVerification && (
+            <div className="space-y-4">
+              {/* Status Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  {identityVerification.review_result === 'GREEN' ? (
+                    <Badge className="bg-green-600">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Verified
+                    </Badge>
+                  ) : identityVerification.review_result === 'RED' ? (
+                    <Badge variant="destructive">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Declined
+                    </Badge>
+                  ) : identityVerification.review_result === 'RETRY' ? (
+                    <Badge className="bg-yellow-600">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Resubmission Required
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Pending
+                    </Badge>
+                  )}
+                </div>
+                {identityVerification.verification_completed_at && (
+                  <span className="text-sm text-muted-foreground">
+                    Verified: {new Date(identityVerification.verification_completed_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {/* Extracted Person Info */}
+              {(identityVerification.first_name || identityVerification.last_name || identityVerification.date_of_birth) && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <IdCard className="h-4 w-4" />
+                    Verified Identity
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    {identityVerification.first_name && (
+                      <div>
+                        <span className="text-muted-foreground">First Name:</span>
+                        <p className="font-medium">{identityVerification.first_name}</p>
+                      </div>
+                    )}
+                    {identityVerification.last_name && (
+                      <div>
+                        <span className="text-muted-foreground">Last Name:</span>
+                        <p className="font-medium">{identityVerification.last_name}</p>
+                      </div>
+                    )}
+                    {identityVerification.date_of_birth && (
+                      <div>
+                        <span className="text-muted-foreground">Date of Birth:</span>
+                        <p className="font-medium">{new Date(identityVerification.date_of_birth).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Document Info */}
+              {(identityVerification.document_type || identityVerification.document_number || identityVerification.document_country) && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Document Details
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    {identityVerification.document_type && (
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <p className="font-medium capitalize">{identityVerification.document_type.replace(/_/g, ' ')}</p>
+                      </div>
+                    )}
+                    {identityVerification.document_number && (
+                      <div>
+                        <span className="text-muted-foreground">Number:</span>
+                        <p className="font-medium font-mono">{identityVerification.document_number}</p>
+                      </div>
+                    )}
+                    {identityVerification.document_country && (
+                      <div>
+                        <span className="text-muted-foreground">Country:</span>
+                        <p className="font-medium">{identityVerification.document_country}</p>
+                      </div>
+                    )}
+                    {identityVerification.document_expiry_date && (
+                      <div>
+                        <span className="text-muted-foreground">Expiry:</span>
+                        <p className="font-medium">{new Date(identityVerification.document_expiry_date).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Document Images */}
+              {(identityVerification.document_front_url || identityVerification.document_back_url) && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Camera className="h-4 w-4" />
+                    Verification Images
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {identityVerification.document_front_url && (
+                      <div className="space-y-2">
+                        <span className="text-sm text-muted-foreground">ID Front</span>
+                        <div className="relative aspect-[3/2] bg-black/5 rounded-lg overflow-hidden border">
+                          <img
+                            src={identityVerification.document_front_url}
+                            alt="ID Front"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="hidden absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
+                            Image unavailable
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => window.open(identityVerification.document_front_url, '_blank')}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          View Full Size
+                        </Button>
+                      </div>
+                    )}
+                    {identityVerification.document_back_url && (
+                      <div className="space-y-2">
+                        <span className="text-sm text-muted-foreground">ID Back</span>
+                        <div className="relative aspect-[3/2] bg-black/5 rounded-lg overflow-hidden border">
+                          <img
+                            src={identityVerification.document_back_url}
+                            alt="ID Back"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="hidden absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
+                            Image unavailable
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => window.open(identityVerification.document_back_url, '_blank')}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          View Full Size
+                        </Button>
+                      </div>
+                    )}
+                                      </div>
+                  {identityVerification.media_fetched_at && (
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Images fetched: {new Date(identityVerification.media_fetched_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Rejection Reason */}
+              {identityVerification.rejection_reason && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Rejection Reason:</strong> {identityVerification.rejection_reason}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       )}
 
       {/* Key Handover Section */}

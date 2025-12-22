@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as base64Encode } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,10 +28,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { documentId, fileUrl }: ScanRequest = await req.json();
+  let documentId: string | null = null;
 
-    console.log('Starting AI scan for document:', documentId);
+  try {
+    const body = await req.json();
+    documentId = body.documentId;
+    const fileUrl = body.fileUrl;
+
+    console.log('Starting AI scan for document:', documentId, 'fileUrl:', fileUrl);
+
+    if (!documentId || !fileUrl) {
+      throw new Error('Missing documentId or fileUrl');
+    }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -45,24 +54,87 @@ serve(async (req) => {
 
     console.log('Updated status to processing');
 
+    // Get document record to find the actual file URL
+    const { data: docRecord, error: docError } = await supabase
+      .from('customer_documents')
+      .select('file_url')
+      .eq('id', documentId)
+      .single();
+
+    if (docError) {
+      console.error('Document record error:', docError);
+      throw new Error(`Failed to get document record: ${docError.message}`);
+    }
+
+    const actualFileUrl = docRecord?.file_url || fileUrl;
+    console.log('Downloading from path:', actualFileUrl);
+
     // Download document from Supabase Storage
     const { data: fileData, error: downloadError } = await supabase.storage
       .from('customer-documents')
-      .download(fileUrl);
+      .download(actualFileUrl);
 
     if (downloadError) {
-      console.error('Download error:', downloadError);
-      throw new Error(`Failed to download document: ${downloadError.message}`);
+      console.error('Download error:', JSON.stringify(downloadError));
+      throw new Error(`Failed to download document: ${JSON.stringify(downloadError)}`);
     }
 
-    console.log('Document downloaded successfully');
+    if (!fileData) {
+      throw new Error('No file data returned from storage');
+    }
 
-    // Convert to base64 for OpenAI Vision API
+    console.log('Document downloaded successfully, size:', fileData.size);
+
+    // Determine MIME type from file extension
+    const extension = actualFileUrl.split('.').pop()?.toLowerCase();
+    let mimeType = 'image/jpeg';
+    if (extension === 'pdf') {
+      mimeType = 'application/pdf';
+    } else if (extension === 'png') {
+      mimeType = 'image/png';
+    } else if (extension === 'jpg' || extension === 'jpeg') {
+      mimeType = 'image/jpeg';
+    }
+
+    console.log('Detected MIME type:', mimeType);
+
+    // OpenAI Vision API doesn't support PDFs - mark for manual review
+    if (mimeType === 'application/pdf') {
+      console.log('PDF detected - marking for manual review (OpenAI Vision does not support PDFs)');
+
+      await supabase
+        .from('customer_documents')
+        .update({
+          ai_scan_status: 'pending_manual_review',
+          ai_extracted_data: { note: 'PDF documents require manual review' },
+          ai_validation_score: 0,
+          scanned_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            extractedData: { note: 'PDF documents require manual review' },
+            validationScore: 0,
+            confidenceScore: 0,
+            requiresManualReview: true
+          }
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Convert to base64 properly (handles large files)
     const arrayBuffer = await fileData.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    const base64Image = btoa(String.fromCharCode(...uint8Array));
+    const base64Image = base64Encode(uint8Array);
 
-    console.log('Image converted to base64');
+    console.log('Image converted to base64, length:', base64Image.length);
 
     // Call OpenAI Vision API
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -79,7 +151,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'user',
@@ -102,7 +174,7 @@ If any field cannot be determined, use null. Be strict and only extract data you
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`
+                  url: `data:${mimeType};base64,${base64Image}`
                 }
               }
             ]
@@ -127,9 +199,47 @@ If any field cannot be determined, use null. Be strict and only extract data you
       throw new Error('No content in OpenAI response');
     }
 
+    console.log('OpenAI raw response:', extractedText.substring(0, 200));
+
     // Parse extracted JSON (remove any markdown formatting if present)
     const cleanedText = extractedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const extractedData: ExtractedData = JSON.parse(cleanedText);
+
+    let extractedData: ExtractedData;
+    try {
+      extractedData = JSON.parse(cleanedText);
+    } catch (parseError) {
+      // OpenAI returned text instead of JSON - the image might not be a valid insurance document
+      console.log('Could not parse AI response as JSON, marking for manual review');
+
+      await supabase
+        .from('customer_documents')
+        .update({
+          ai_scan_status: 'needs_review',
+          ai_extracted_data: {
+            note: 'AI could not extract structured data from this document',
+            raw_response: extractedText.substring(0, 500)
+          },
+          ai_validation_score: 0,
+          scanned_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            extractedData: { note: 'Document requires manual review' },
+            validationScore: 0,
+            confidenceScore: 0,
+            requiresManualReview: true
+          }
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     console.log('Extracted data:', extractedData);
 
@@ -176,17 +286,15 @@ If any field cannot be determined, use null. Be strict and only extract data you
     );
 
   } catch (error: any) {
-    console.error('AI scan error:', error);
+    console.error('AI scan error:', error.message || error);
 
     // Try to update document with error status
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    if (documentId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const { documentId } = await req.json().catch(() => ({ documentId: null }));
-
-      if (documentId) {
         await supabase
           .from('customer_documents')
           .update({
@@ -194,9 +302,9 @@ If any field cannot be determined, use null. Be strict and only extract data you
             ai_scan_errors: [error.message || 'Unknown error occurred']
           })
           .eq('id', documentId);
+      } catch (updateError) {
+        console.error('Failed to update error status:', updateError);
       }
-    } catch (updateError) {
-      console.error('Failed to update error status:', updateError);
     }
 
     return new Response(

@@ -57,7 +57,7 @@ export const AddPaymentDialog = ({
     defaultValues: {
       customer_id: customer_id || "",
       vehicle_id: vehicle_id || "",
-      amount: 0,
+      amount: undefined,
       payment_date: toZonedTime(new Date(), 'America/New_York'),
       method: "",
       notes: "",
@@ -82,7 +82,7 @@ export const AddPaymentDialog = ({
       form.reset({
         customer_id: "",
         vehicle_id: "",
-        amount: 0,
+        amount: undefined,
         payment_date: toZonedTime(new Date(), 'America/New_York'),
         method: "",
         notes: "",
@@ -360,6 +360,7 @@ export const AddPaymentDialog = ({
                         step="0.01"
                         placeholder="Enter amount"
                         {...field}
+                        value={field.value ?? ''}
                         onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
                       />
                       {outstandingBalance !== undefined && outstandingBalance > 0 && (

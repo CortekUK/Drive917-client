@@ -114,6 +114,8 @@ export default function BookingCheckoutStep({
           customerEmail: formData.customerEmail,
           customerName: formData.customerName,
           totalAmount: calculateGrandTotal(),
+          tenantSlug: tenant?.slug, // Pass tenant slug for Stripe Connect routing
+          tenantId: tenant?.id,
         },
       });
 
@@ -164,6 +166,7 @@ export default function BookingCheckoutStep({
           totalAmount: calculateGrandTotal(),
           pickupDate: formData.pickupDate,
           returnDate: formData.dropoffDate,
+          tenantId: tenant?.id, // Explicitly pass tenant_id
         },
       });
 
@@ -193,38 +196,48 @@ export default function BookingCheckoutStep({
   const handleSendDocuSign = async () => {
     if (!createdRentalData) return;
 
-    try {
-      setSendingDocuSign(true);
-      toast.loading("Sending rental agreement via DocuSign...", { id: "docusign-send" });
+    setSendingDocuSign(true);
 
-      const { data, error } = await supabase.functions.invoke('create-docusign-envelope', {
-        body: {
-          rentalId: createdRentalData.rental.id,
-          customerId: createdRentalData.customer.id,
-          customerEmail: formData.customerEmail,
-          customerName: formData.customerName,
-        },
-      });
+    // Skip DocuSign if not configured - go straight to payment
+    // DocuSign integration is optional and can be enabled later
+    const DOCUSIGN_ENABLED = true; // DocuSign is configured
 
-      if (error) throw error;
+    if (DOCUSIGN_ENABLED) {
+      try {
+        console.log('📄 Attempting to send DocuSign envelope...');
 
-      if (data?.ok) {
-        toast.success("Rental agreement sent successfully!", { id: "docusign-send" });
-      } else {
-        throw new Error(data?.error || 'Failed to send DocuSign');
+        const { data, error } = await supabase.functions.invoke('create-docusign-envelope', {
+          body: {
+            rentalId: createdRentalData.rental.id,
+            customerId: createdRentalData.customer.id,
+            customerEmail: formData.customerEmail,
+            customerName: formData.customerName,
+          },
+        });
+
+        if (error) {
+          console.warn("⚠️ DocuSign envelope creation skipped:", error.message || error);
+        } else if (data?.ok) {
+          console.log("✅ Rental agreement sent via DocuSign");
+          toast.success("Rental agreement sent to your email!");
+        } else {
+          console.warn("⚠️ DocuSign not configured or failed:", data?.error || data?.detail);
+        }
+      } catch (error: any) {
+        console.warn("⚠️ DocuSign error (non-blocking):", error.message || error);
       }
-    } catch (error: any) {
-      console.error("DocuSign error:", error);
-      toast.error(error.message || "Failed to send rental agreement", { id: "docusign-send" });
-    } finally {
-      setSendingDocuSign(false);
-      // Proceed to payment based on booking mode
-      const bookingMode = await getBookingMode();
-      if (bookingMode === 'manual') {
-        redirectToPreAuthPayment();
-      } else {
-        redirectToStripePayment();
-      }
+    }
+
+    setSendingDocuSign(false);
+
+    // Always proceed to payment regardless of DocuSign status
+    const bookingMode = await getBookingMode();
+    console.log('💳 Proceeding to payment, mode:', bookingMode);
+
+    if (bookingMode === 'manual') {
+      redirectToPreAuthPayment();
+    } else {
+      redirectToStripePayment();
     }
   };
 
@@ -276,7 +289,7 @@ export default function BookingCheckoutStep({
         let updateQuery = supabase
           .from("customers")
           .update({
-            customer_type: formData.customerType,
+            type: formData.customerType,
             name: formData.customerName,
             phone: formData.customerPhone,
             status: "Active",
@@ -297,7 +310,7 @@ export default function BookingCheckoutStep({
         // Create new customer
         console.log('🆕 Creating new customer...');
         const customerData: any = {
-          customer_type: formData.customerType,
+          type: formData.customerType,
           name: formData.customerName,
           email: formData.customerEmail,
           phone: formData.customerPhone,
@@ -515,6 +528,7 @@ export default function BookingCheckoutStep({
         rental_id: rental.id,
         vehicle_id: selectedVehicle.id,
         apply_from_date: formData.pickupDate,
+        tenant_id: tenant?.id, // Include tenant_id for proper filtering in portal
       };
       localStorage.setItem('pendingPaymentDetails', JSON.stringify(paymentDetails));
       console.log('✅ Payment details stored:', paymentDetails);
@@ -525,6 +539,63 @@ export default function BookingCheckoutStep({
         rental,
         vehicle: selectedVehicle,
       });
+
+      // Link any existing insurance documents to this rental
+      // Insurance is uploaded before rental creation with a temp customer,
+      // so we need to update both customer_id and rental_id
+      try {
+        // Get pending insurance docs from localStorage (stored during upload)
+        const pendingDocs = typeof window !== 'undefined'
+          ? JSON.parse(localStorage.getItem('pending_insurance_docs') || '[]')
+          : [];
+
+        console.log('🔍 Found pending insurance docs:', pendingDocs);
+
+        if (pendingDocs.length > 0) {
+          // Update each pending document with real customer_id and rental_id
+          for (const doc of pendingDocs) {
+            console.log(`📎 Linking document ${doc.document_id} to customer ${customer.id} and rental ${rental.id}`);
+
+            const { error: linkError } = await supabase
+              .from('customer_documents')
+              .update({
+                customer_id: customer.id,
+                rental_id: rental.id
+              })
+              .eq('id', doc.document_id);
+
+            if (linkError) {
+              console.warn(`⚠️ Could not link document ${doc.document_id}:`, linkError);
+            } else {
+              console.log(`✅ Document ${doc.document_id} linked successfully`);
+            }
+
+            // Optionally delete the temp customer (cleanup)
+            if (doc.temp_customer_id && doc.temp_customer_id !== customer.id) {
+              await supabase
+                .from('customers')
+                .delete()
+                .eq('id', doc.temp_customer_id)
+                .like('email', 'pending-%@temp.booking')
+                .then(({ error }) => {
+                  if (error) {
+                    console.warn('⚠️ Could not cleanup temp customer:', error);
+                  } else {
+                    console.log('🧹 Temp customer cleaned up');
+                  }
+                });
+            }
+          }
+
+          // Clear pending docs from localStorage
+          localStorage.removeItem('pending_insurance_docs');
+          console.log('✅ Insurance documents linked to rental and cleaned up');
+        } else {
+          console.log('ℹ️ No pending insurance documents to link');
+        }
+      } catch (linkErr) {
+        console.warn('⚠️ Error linking insurance documents:', linkErr);
+      }
 
       // Show invoice dialog first (before payment)
       setShowInvoiceDialog(true);

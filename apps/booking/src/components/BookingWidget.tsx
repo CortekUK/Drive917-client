@@ -163,6 +163,7 @@ const BookingWidget = () => {
       monthly_amount: calculatePriceNumber(),
       notes: formData.additionalRequirements,
       status: "Pending",
+      source: "booking",
     };
 
     // Add tenant_id if tenant context exists

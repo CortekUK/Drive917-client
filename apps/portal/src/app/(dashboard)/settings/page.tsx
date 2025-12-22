@@ -59,7 +59,7 @@ const Settings = () => {
   // Handle URL tab parameter
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['branding', 'reminders', 'payments', 'stripe-connect', 'locations', 'users'].includes(tabParam)) {
+    if (tabParam && ['branding', 'reminders', 'payments', 'stripe-connect', 'locations'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -366,7 +366,7 @@ const Settings = () => {
 
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="branding" className="flex items-center gap-2">
             <Palette className="h-4 w-4" />
             <span className="hidden sm:inline">Branding</span>
@@ -386,10 +386,6 @@ const Settings = () => {
           <TabsTrigger value="locations" className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             <span className="hidden sm:inline">Locations</span>
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <SettingsIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Users</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1155,19 +1151,6 @@ const Settings = () => {
         {/* Locations Tab */}
         <TabsContent value="locations" className="space-y-6">
           <LocationSettings />
-        </TabsContent>
-
-      {/* Users Tab - Moved to separate page */}
-      <TabsContent value="users">
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <h3 className="text-lg font-medium mb-2">Users Management</h3>
-          <p className="text-muted-foreground mb-4">
-            User management has been moved to a dedicated page.
-          </p>
-          <Button onClick={() => router.push('/settings/users')}>
-            Go to Users Management
-          </Button>
-        </div>
         </TabsContent>
       </Tabs>
 

@@ -81,11 +81,14 @@ const BookingSuccessContent = () => {
                     payment_date: today,
                     payment_type: "Payment",
                     method: "Card",
-                    status: "Pending", // Will be "Applied" after apply-payment runs
+                    status: "Applied", // Payment was captured by Stripe
                     is_early: false,
                     remaining_amount: paymentDetails.amount, // Will be reduced by apply-payment
                     apply_from_date: paymentDetails.apply_from_date || today,
                     tenant_id: tenant?.id || paymentDetails.tenant_id,
+                    verification_status: "auto_approved",
+                    capture_status: "captured",
+                    booking_source: "website",
                   })
                   .select()
                   .single();

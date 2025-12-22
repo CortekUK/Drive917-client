@@ -793,6 +793,20 @@ export default function VehicleDetail() {
             <AlertDialogAction
               onClick={async () => {
                 try {
+                  // Delete related records first to avoid foreign key constraints
+                  // Delete P&L entries
+                  await supabase.from('pnl_entries').delete().eq('vehicle_id', vehicle.id);
+
+                  // Delete vehicle photos
+                  await supabase.from('vehicle_photos').delete().eq('vehicle_id', vehicle.id);
+
+                  // Delete vehicle expenses
+                  await supabase.from('vehicle_expenses').delete().eq('vehicle_id', vehicle.id);
+
+                  // Delete service records
+                  await supabase.from('vehicle_services').delete().eq('vehicle_id', vehicle.id);
+
+                  // Now delete the vehicle
                   const { error } = await supabase
                     .from('vehicles')
                     .delete()
@@ -802,7 +816,7 @@ export default function VehicleDetail() {
 
                   toast({
                     title: "Vehicle deleted",
-                    description: "The vehicle has been permanently deleted.",
+                    description: "The vehicle and all related records have been permanently deleted.",
                   });
 
                   router.push('/vehicles');

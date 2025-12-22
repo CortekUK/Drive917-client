@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,33 +67,27 @@ const PaymentsList = () => {
   const { settings } = useOrgSettings();
   const { approvePayment, rejectPayment, isLoading: isVerifying } = usePaymentVerificationActions();
 
+  // Initialize date filters for "thisMonth" on mount
+  const getInitialFilters = (): IPaymentFilters => {
+    const today = new Date();
+    return {
+      customerSearch: '',
+      vehicleSearch: '',
+      method: 'all',
+      dateFrom: new Date(today.getFullYear(), today.getMonth(), 1),
+      dateTo: today,
+      quickFilter: 'thisMonth',
+      verificationStatus: 'all',
+    };
+  };
+
   // Filter and pagination state
-  const [filters, setFilters] = useState<IPaymentFilters>({
-    customerSearch: '',
-    vehicleSearch: '',
-    method: 'all',
-    dateFrom: undefined,
-    dateTo: undefined,
-    quickFilter: 'thisMonth',
-    verificationStatus: 'all',
-  });
+  const [filters, setFilters] = useState<IPaymentFilters>(getInitialFilters);
 
   const [sortBy, setSortBy] = useState('payment_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   const pageSize = 25;
-
-  // Apply default date filter for "thisMonth" in useEffect to avoid infinite re-renders
-  useEffect(() => {
-    if (filters.quickFilter === 'thisMonth' && !filters.dateFrom) {
-      const today = new Date();
-      setFilters(prev => ({
-        ...prev,
-        dateFrom: new Date(today.getFullYear(), today.getMonth(), 1),
-        dateTo: today
-      }));
-    }
-  }, [filters.quickFilter, filters.dateFrom]);
 
   const { data: paymentsData, isLoading } = usePaymentsData({
     filters,
@@ -281,7 +275,7 @@ const PaymentsList = () => {
                           <TableCell>
                             <button
                               onClick={() => router.push(`/customers/${payment.customers.id}`)}
-                              className="text-primary hover:opacity-80 hover:underline font-medium"
+                              className="text-foreground hover:underline hover:opacity-80 font-medium"
                             >
                               {payment.customers.name}
                             </button>
@@ -290,7 +284,7 @@ const PaymentsList = () => {
                             {payment.vehicles ? (
                               <button
                                 onClick={() => router.push(`/vehicles/${payment.vehicles!.id}`)}
-                                className="text-primary hover:opacity-80 hover:underline font-medium"
+                                className="text-foreground hover:underline hover:opacity-80 font-medium"
                               >
                                 {payment.vehicles.reg}
                                 {payment.vehicles.make && payment.vehicles.model &&

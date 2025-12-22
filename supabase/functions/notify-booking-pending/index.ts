@@ -222,7 +222,7 @@ serve(async (req) => {
     }
 
     // Send admin email
-    const adminEmail = EMAIL_CONFIG.adminEmail;
+    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'admin@drive-247.com';
     if (adminEmail) {
       results.adminEmail = await sendEmail(
         adminEmail,

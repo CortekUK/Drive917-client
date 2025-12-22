@@ -415,7 +415,7 @@ export default function InsuranceListEnhanced() {
                       <TableCell>
                         <Link
                           href={`/customers/${policy.customer_id}`}
-                          className="font-medium text-primary hover:underline"
+                          className="font-medium text-foreground hover:underline hover:opacity-80"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {policy.customers.name}

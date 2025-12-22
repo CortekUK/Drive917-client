@@ -218,14 +218,18 @@ export const EditVehicleDialogEnhanced = ({ vehicle, open, onOpenChange }: EditV
     }
   };
 
+  const isControlled = open !== undefined;
+
   return (
     <Dialog open={currentOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Vehicle
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Vehicle
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -261,7 +265,7 @@ export const EditVehicleDialogEnhanced = ({ vehicle, open, onOpenChange }: EditV
                 onSubmit(data);
               })(e);
             }}
-            className="space-y-4"
+            className="space-y-4 px-1"
           >
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -595,18 +599,19 @@ export const EditVehicleDialogEnhanced = ({ vehicle, open, onOpenChange }: EditV
               </div>
             )}
 
-            {/* MOT & TAX Due Dates */}
+            {/* Inspection & Registration Due Dates */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="mot_due_date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>MOT Due Date</FormLabel>
-                    <Popover>
+                    <FormLabel>Inspection Due Date</FormLabel>
+                    <Popover modal={true}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
+                            type="button"
                             variant={"outline"}
                             className={cn(
                               "w-full pl-3 text-left font-normal",
@@ -616,13 +621,13 @@ export const EditVehicleDialogEnhanced = ({ vehicle, open, onOpenChange }: EditV
                             {field.value ? (
                               format(field.value, "PPP")
                             ) : (
-                              <span>Pick MOT due date</span>
+                              <span>Pick inspection due date</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 z-50" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
@@ -642,11 +647,12 @@ export const EditVehicleDialogEnhanced = ({ vehicle, open, onOpenChange }: EditV
                 name="tax_due_date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>TAX Due Date</FormLabel>
-                    <Popover>
+                    <FormLabel>Registration Due Date</FormLabel>
+                    <Popover modal={true}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
+                            type="button"
                             variant={"outline"}
                             className={cn(
                               "w-full pl-3 text-left font-normal",
@@ -656,13 +662,13 @@ export const EditVehicleDialogEnhanced = ({ vehicle, open, onOpenChange }: EditV
                             {field.value ? (
                               format(field.value, "PPP")
                             ) : (
-                              <span>Pick TAX due date</span>
+                              <span>Pick registration due date</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 z-50" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}

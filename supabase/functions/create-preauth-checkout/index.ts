@@ -69,77 +69,51 @@ serve(async (req) => {
 
       if (tenant?.stripe_account_id && tenant?.stripe_onboarding_complete) {
         stripeAccountId = tenant.stripe_account_id
+        console.log('Using Stripe Connect account:', stripeAccountId)
+      } else {
+        console.log('No Stripe Connect account configured for tenant:', tenantId)
+        if (tenant) {
+          console.log('stripe_account_id:', tenant.stripe_account_id)
+          console.log('stripe_onboarding_complete:', tenant.stripe_onboarding_complete)
+        }
       }
     }
-
-    // Create Stripe PaymentIntent with manual capture (pre-authorization)
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(body.totalAmount * 100), // Convert to cents
-      currency: 'usd',
-      capture_method: 'manual', // KEY: This creates a hold, not a charge
-      payment_method_types: ['card'],
-      metadata: {
-        rental_id: body.rentalId,
-        customer_id: body.customerId,
-        customer_name: body.customerName,
-        customer_email: body.customerEmail,
-        vehicle_id: body.vehicleId,
-        vehicle_name: body.vehicleName,
-        pickup_date: body.pickupDate,
-        return_date: body.returnDate,
-        protection_plan: body.protectionPlan || 'none',
-        booking_source: 'website',
-      },
-      description: `Vehicle Rental: ${body.vehicleName} (${body.pickupDate} - ${body.returnDate})`,
-      receipt_email: body.customerEmail,
-    })
 
     // Calculate pre-auth expiry (7 days from now)
     const preauthExpiresAt = new Date()
     preauthExpiresAt.setDate(preauthExpiresAt.getDate() + 7)
 
-    // Create payment record in database with pre-auth status
-    const { data: payment, error: paymentError } = await supabase
-      .from('payments')
-      .insert({
-        customer_id: body.customerId,
-        rental_id: body.rentalId,
-        vehicle_id: body.vehicleId,
-        amount: body.totalAmount,
-        payment_date: new Date().toISOString().split('T')[0],
-        method: 'Stripe',
-        payment_type: 'InitialFee',
-        status: 'Pending',
-        verification_status: 'pending',
-        is_manual_mode: true,
-        stripe_payment_intent_id: paymentIntent.id,
-        capture_status: 'requires_capture',
-        preauth_expires_at: preauthExpiresAt.toISOString(),
-        booking_source: 'website',
-        tenant_id: tenantId,
-      })
-      .select()
-      .single()
-
-    if (paymentError) {
-      console.error('Error creating payment record:', paymentError)
-      // Don't fail the checkout - just log the error
+    // Build payment_intent_data for Checkout Session
+    const paymentMetadata = {
+      rental_id: body.rentalId,
+      customer_id: body.customerId,
+      customer_name: body.customerName,
+      customer_email: body.customerEmail,
+      vehicle_id: body.vehicleId,
+      vehicle_name: body.vehicleName,
+      pickup_date: body.pickupDate,
+      return_date: body.returnDate,
+      protection_plan: body.protectionPlan || 'none',
+      booking_source: 'website',
+      tenant_id: tenantId || '',
     }
 
-    // Build payment_intent_data with optional Stripe Connect transfer
     const paymentIntentData: any = {
-      capture_method: 'manual',
-      metadata: paymentIntent.metadata,
+      capture_method: 'manual', // KEY: This creates a hold, not a charge
+      metadata: paymentMetadata,
+      description: `Vehicle Rental: ${body.vehicleName} (${body.pickupDate} - ${body.returnDate})`,
     }
 
     // If tenant has Stripe Connect, route payment to their account
+    // Transfer happens when payment is captured (approved)
     if (stripeAccountId) {
       paymentIntentData.transfer_data = {
         destination: stripeAccountId,
       }
+      console.log('Transfer will be routed to connected account:', stripeAccountId)
     }
 
-    // Create Stripe Checkout Session for collecting payment method
+    // Create Stripe Checkout Session (this creates the PaymentIntent internally)
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -165,29 +139,52 @@ serve(async (req) => {
       metadata: {
         rental_id: body.rentalId,
         customer_id: body.customerId,
-        payment_id: payment?.id || '',
         booking_source: 'website',
         preauth_mode: 'true',
+        stripe_account_id: stripeAccountId || '',
       },
     })
 
-    // Update payment record with checkout session ID
-    if (payment?.id) {
-      await supabase
-        .from('payments')
-        .update({
-          stripe_checkout_session_id: session.id,
-        })
-        .eq('id', payment.id)
+    console.log('Pre-auth checkout session created:', session.id)
+
+    // Create payment record in database with pre-auth status
+    // Note: PaymentIntent ID will be updated by webhook after checkout completes
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        customer_id: body.customerId,
+        rental_id: body.rentalId,
+        vehicle_id: body.vehicleId,
+        amount: body.totalAmount,
+        payment_date: new Date().toISOString().split('T')[0],
+        method: 'Stripe',
+        payment_type: 'InitialFee',
+        status: 'Pending',
+        verification_status: 'pending',
+        is_manual_mode: true,
+        stripe_checkout_session_id: session.id,
+        capture_status: 'requires_capture',
+        preauth_expires_at: preauthExpiresAt.toISOString(),
+        booking_source: 'website',
+        tenant_id: tenantId,
+      })
+      .select()
+      .single()
+
+    if (paymentError) {
+      console.error('Error creating payment record:', paymentError)
+      // Don't fail the checkout - just log the error
     }
 
-    console.log('Pre-auth checkout session created:', session.id)
+    // Update session metadata with payment_id for webhook
+    // (Stripe doesn't let us update session metadata after creation, so we track via checkout_session_id)
+
+    console.log('Payment record created:', payment?.id)
 
     return new Response(
       JSON.stringify({
         sessionId: session.id,
         url: session.url,
-        paymentIntentId: paymentIntent.id,
         paymentId: payment?.id,
       }),
       {

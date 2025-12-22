@@ -1,17 +1,18 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, ExternalLink } from "lucide-react";
+import { FileText, Download, ExternalLink, CheckCircle, XCircle } from "lucide-react";
 import { EmptyState } from "@/components/shared/data-display/empty-state";
 import { format } from "date-fns";
 import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 interface Document {
   id: string;
@@ -22,6 +23,7 @@ interface Document {
   created_at: string;
   document_type?: string;
   status?: string;
+  verified?: boolean;
   customer_id: string;
   customers?: {
     name: string;
@@ -32,6 +34,51 @@ interface Document {
 export default function DocumentsList() {
   const [searchQuery, setSearchQuery] = useState("");
   const { tenant } = useTenant();
+  const queryClient = useQueryClient();
+
+  // Mutation for approving documents
+  const approveDocumentMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const { error } = await supabase
+        .from("customer_documents")
+        .update({
+          verified: true,
+          status: "Approved",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", documentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["completed-documents"] });
+      toast.success("Document approved successfully");
+    },
+    onError: () => {
+      toast.error("Failed to approve document");
+    },
+  });
+
+  // Mutation for rejecting documents
+  const rejectDocumentMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const { error } = await supabase
+        .from("customer_documents")
+        .update({
+          verified: false,
+          status: "Rejected",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", documentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["completed-documents"] });
+      toast.success("Document rejected");
+    },
+    onError: () => {
+      toast.error("Failed to reject document");
+    },
+  });
 
   // Fetch completed documents from customer_documents table
   const { data: completedDocuments = [], isLoading: isLoadingCompleted } = useQuery({
@@ -235,7 +282,7 @@ export default function DocumentsList() {
                   {filteredDocuments.map((doc) => (
                     <TableRow key={doc.id}>
                       <TableCell className="font-medium">{doc.document_name}</TableCell>
-                      <TableCell className="font-medium text-primary">
+                      <TableCell className="font-medium text-foreground">
                         {doc.customers?.name || "—"}
                       </TableCell>
                       <TableCell className="text-sm">
@@ -284,6 +331,31 @@ export default function DocumentsList() {
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>
+                              {/* Approve/Reject buttons for pending documents */}
+                              {!doc.isRentalAgreement && doc.status?.toLowerCase() !== "approved" && doc.status?.toLowerCase() !== "rejected" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    onClick={() => approveDocumentMutation.mutate(doc.id)}
+                                    disabled={approveDocumentMutation.isPending || rejectDocumentMutation.isPending}
+                                    title="Approve document"
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => rejectDocumentMutation.mutate(doc.id)}
+                                    disabled={approveDocumentMutation.isPending || rejectDocumentMutation.isPending}
+                                    title="Reject document"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
                             </>
                           ) : doc.isRentalAgreement ? (
                             <span className="text-sm text-muted-foreground">Pending signature</span>

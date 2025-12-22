@@ -59,7 +59,7 @@ const CreateFine = () => {
       reference_no: "",
       issue_date: new Date(),
       due_date: new Date(new Date().getTime() + 28 * 24 * 60 * 60 * 1000), // 28 days from now
-      amount: 0,
+      amount: undefined,
       liability: "Customer",
       notes: "",
     },

@@ -7,6 +7,151 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-hmac-signature, x-signature',
 };
 
+// Generate HMAC-SHA256 signature for Veriff API
+function generateVeriffSignature(payload: string, secret: string): string {
+  const hmac = createHmac('sha256', secret);
+  hmac.update(payload);
+  return hmac.digest('hex');
+}
+
+// Download image from Veriff and upload to Supabase Storage
+async function downloadAndStoreImage(
+  supabaseClient: any,
+  imageUrl: string,
+  sessionId: string,
+  imageType: string
+): Promise<string | null> {
+  const VERIFF_API_KEY = Deno.env.get('VERIFF_API_KEY');
+  const VERIFF_API_SECRET = Deno.env.get('VERIFF_API_SECRET');
+
+  if (!VERIFF_API_KEY || !VERIFF_API_SECRET) {
+    return null;
+  }
+
+  try {
+    // Extract media ID from URL for signature
+    const mediaId = imageUrl.split('/').pop();
+    if (!mediaId) return null;
+
+    // Generate signature for the media ID
+    const signature = generateVeriffSignature(mediaId, VERIFF_API_SECRET);
+
+    // Download image from Veriff
+    const response = await fetch(imageUrl, {
+      method: 'GET',
+      headers: {
+        'X-AUTH-CLIENT': VERIFF_API_KEY,
+        'X-HMAC-SIGNATURE': signature,
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to download ${imageType}:`, response.status);
+      return null;
+    }
+
+    const imageBlob = await response.blob();
+    const fileName = `veriff/${sessionId}/${imageType}.jpg`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabaseClient.storage
+      .from('customer-documents')
+      .upload(fileName, imageBlob, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+
+    if (error) {
+      console.error(`Failed to upload ${imageType} to storage:`, error);
+      return null;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabaseClient.storage
+      .from('customer-documents')
+      .getPublicUrl(fileName);
+
+    console.log(`Stored ${imageType}:`, urlData.publicUrl);
+    return urlData.publicUrl;
+
+  } catch (error) {
+    console.error(`Error processing ${imageType}:`, error);
+    return null;
+  }
+}
+
+// Fetch media (document images, face photo) from Veriff API and store in Supabase
+async function fetchVeriffMedia(sessionId: string, supabaseClient: any): Promise<{
+  documentFrontUrl?: string;
+  documentBackUrl?: string;
+  faceImageUrl?: string;
+} | null> {
+  const VERIFF_API_KEY = Deno.env.get('VERIFF_API_KEY');
+  const VERIFF_API_SECRET = Deno.env.get('VERIFF_API_SECRET');
+  const VERIFF_BASE_URL = Deno.env.get('VERIFF_BASE_URL') || 'https://stationapi.veriff.com';
+
+  if (!VERIFF_API_KEY || !VERIFF_API_SECRET) {
+    console.log('Veriff API credentials not configured - skipping media fetch');
+    return null;
+  }
+
+  try {
+    console.log('Fetching media for session:', sessionId);
+
+    // Veriff Media API endpoint
+    const mediaUrl = `${VERIFF_BASE_URL}/v1/sessions/${sessionId}/media`;
+
+    // Generate HMAC signature - Veriff expects signature of the session ID
+    const signature = generateVeriffSignature(sessionId, VERIFF_API_SECRET);
+
+    const response = await fetch(mediaUrl, {
+      method: 'GET',
+      headers: {
+        'X-AUTH-CLIENT': VERIFF_API_KEY,
+        'X-HMAC-SIGNATURE': signature,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch Veriff media:', response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('Veriff media response - found', data.images?.length || 0, 'images');
+
+    const result: {
+      documentFrontUrl?: string;
+      documentBackUrl?: string;
+      faceImageUrl?: string;
+    } = {};
+
+    // Extract media URLs and download/store images
+    if (data.images && Array.isArray(data.images)) {
+      for (const image of data.images) {
+        if (image.context === 'document-front' && image.url) {
+          const storedUrl = await downloadAndStoreImage(supabaseClient, image.url, sessionId, 'document-front');
+          if (storedUrl) result.documentFrontUrl = storedUrl;
+        } else if (image.context === 'document-back' && image.url) {
+          const storedUrl = await downloadAndStoreImage(supabaseClient, image.url, sessionId, 'document-back');
+          if (storedUrl) result.documentBackUrl = storedUrl;
+        } else if (image.context === 'face' && image.url) {
+          const storedUrl = await downloadAndStoreImage(supabaseClient, image.url, sessionId, 'face');
+          if (storedUrl) result.faceImageUrl = storedUrl;
+        }
+      }
+    }
+
+    console.log('Stored media URLs:', result);
+    return result;
+
+  } catch (error) {
+    console.error('Error fetching Veriff media:', error);
+    return null;
+  }
+}
+
 interface VeriffWebhookPayload {
   id: string;
   feature: string;
@@ -173,6 +318,24 @@ async function handleVeriffWebhook(
         }
       }
 
+      // Fetch media for completed verifications
+      if (payload.verification.code === 9001 || payload.verification.code === 9102) {
+        console.log('Fetching media for temp verification record...');
+        const media = await fetchVeriffMedia(sessionId, supabaseClient);
+        if (media) {
+          if (media.documentFrontUrl) {
+            tempVerificationData.document_front_url = media.documentFrontUrl;
+          }
+          if (media.documentBackUrl) {
+            tempVerificationData.document_back_url = media.documentBackUrl;
+          }
+          if (media.faceImageUrl) {
+            tempVerificationData.face_image_url = media.faceImageUrl;
+          }
+          tempVerificationData.media_fetched_at = new Date().toISOString();
+        }
+      }
+
       // Try to create the record
       const { error: createError } = await supabaseClient
         .from('identity_verifications')
@@ -232,6 +395,25 @@ async function handleVeriffWebhook(
       updateData.last_name = payload.verification.person.lastName || null;
       if (payload.verification.person.dateOfBirth) {
         updateData.date_of_birth = payload.verification.person.dateOfBirth;
+      }
+    }
+
+    // Fetch media (document images, face photo) for completed verifications
+    if (payload.verification.code === 9001 || payload.verification.code === 9102) {
+      console.log('Fetching media for completed verification...');
+      const media = await fetchVeriffMedia(sessionId, supabaseClient);
+      if (media) {
+        if (media.documentFrontUrl) {
+          updateData.document_front_url = media.documentFrontUrl;
+        }
+        if (media.documentBackUrl) {
+          updateData.document_back_url = media.documentBackUrl;
+        }
+        if (media.faceImageUrl) {
+          updateData.face_image_url = media.faceImageUrl;
+        }
+        updateData.media_fetched_at = new Date().toISOString();
+        console.log('Media URLs added to update data');
       }
     }
 

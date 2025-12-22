@@ -2,26 +2,33 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard, TrendingUp, Calendar, Hash } from "lucide-react";
+import { useTenant } from "@/contexts/TenantContext";
 
 export const PaymentSummaryCards = () => {
+  const { tenant } = useTenant();
+
   const { data: summaryData } = useQuery({
-    queryKey: ["payment-summary"],
+    queryKey: ["payment-summary", tenant?.id],
     queryFn: async () => {
+      if (!tenant) throw new Error("No tenant context available");
+
       const today = new Date().toISOString().split('T')[0];
       const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-      // Today's payments
+      // Today's payments - filtered by tenant
       const { data: todayPayments, error: todayError } = await supabase
         .from("payments")
         .select("amount")
+        .eq("tenant_id", tenant.id)
         .eq("payment_date", today);
 
       if (todayError) throw todayError;
 
-      // This month's payments
+      // This month's payments - filtered by tenant
       const { data: monthPayments, error: monthError } = await supabase
         .from("payments")
         .select("amount")
+        .eq("tenant_id", tenant.id)
         .gte("payment_date", firstOfMonth);
 
       if (monthError) throw monthError;
@@ -36,6 +43,7 @@ export const PaymentSummaryCards = () => {
         paymentCount
       };
     },
+    enabled: !!tenant,
   });
 
   return (

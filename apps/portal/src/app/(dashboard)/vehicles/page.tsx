@@ -554,7 +554,7 @@ export default function VehiclesListEnhanced() {
                      <TableCell>
                       <Link
                         href={`/vehicles/${vehicle.id}`}
-                        className="font-bold text-primary hover:underline"
+                        className="font-semibold text-foreground hover:text-primary hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {vehicle.reg}

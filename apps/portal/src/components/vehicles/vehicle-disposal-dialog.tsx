@@ -58,10 +58,14 @@ interface Vehicle {
 interface VehicleDisposalDialogProps {
   vehicle: Vehicle;
   onDisposal?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function VehicleDisposalDialog({ vehicle, onDisposal }: VehicleDisposalDialogProps) {
-  const [open, setOpen] = useState(false);
+export function VehicleDisposalDialog({ vehicle, onDisposal, open: controlledOpen, onOpenChange }: VehicleDisposalDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
   const [showConfirm, setShowConfirm] = useState(false);
   const [bookCost, setBookCost] = useState<number | null>(null);
   const [gainLoss, setGainLoss] = useState<number | null>(null);
@@ -72,7 +76,7 @@ export function VehicleDisposalDialog({ vehicle, onDisposal }: VehicleDisposalDi
     resolver: zodResolver(vehicleDisposalSchema),
     defaultValues: {
       disposal_date: new Date(),
-      sale_proceeds: 0,
+      sale_proceeds: undefined,
       disposal_buyer: "",
       disposal_notes: "",
     },
@@ -87,7 +91,7 @@ export function VehicleDisposalDialog({ vehicle, onDisposal }: VehicleDisposalDi
   }, [open, bookCost, calculateBookCost]);
 
   useEffect(() => {
-    if (bookCost !== null && saleProceeds > 0) {
+    if (bookCost !== null && saleProceeds && saleProceeds > 0) {
       setGainLoss(saleProceeds - bookCost);
     } else {
       setGainLoss(null);
@@ -109,17 +113,20 @@ export function VehicleDisposalDialog({ vehicle, onDisposal }: VehicleDisposalDi
       };
 
       await disposeVehicle(disposalData);
-      setOpen(false);
+      handleOpenChange(false);
       setShowConfirm(false);
       onDisposal?.();
-      form.reset();
     } catch (error) {
       console.error('Failed to dispose vehicle:', error);
     }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
+    if (isControlled) {
+      onOpenChange?.(newOpen);
+    } else {
+      setInternalOpen(newOpen);
+    }
     if (!newOpen) {
       setShowConfirm(false);
       form.reset();
@@ -128,12 +135,14 @@ export function VehicleDisposalDialog({ vehicle, onDisposal }: VehicleDisposalDi
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="destructive" size="sm" className="gap-2 w-full">
-          <Trash2 className="h-5 w-5 shrink-0" />
-          Dispose Vehicle
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="destructive" size="sm" className="gap-2 w-full">
+            <Trash2 className="h-5 w-5 shrink-0" />
+            Dispose Vehicle
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Dispose Vehicle</DialogTitle>
@@ -143,7 +152,7 @@ export function VehicleDisposalDialog({ vehicle, onDisposal }: VehicleDisposalDi
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-1">
             <FormField
               control={form.control}
               name="disposal_date"
@@ -200,7 +209,8 @@ export function VehicleDisposalDialog({ vehicle, onDisposal }: VehicleDisposalDi
                       min="0"
                       placeholder="0.00"
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />

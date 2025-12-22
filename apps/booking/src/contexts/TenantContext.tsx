@@ -137,9 +137,53 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const slug = extractSubdomain(hostname);
       setTenantSlug(slug);
 
-      // If no subdomain, this is the main domain - no tenant context needed
+      // If no subdomain, this is the main domain
       if (!slug) {
+        // In development, try to load a default tenant for easier testing
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[TenantContext] No subdomain detected in development, checking for NEXT_PUBLIC_DEFAULT_TENANT_SLUG');
+
+          // Check for default tenant slug from env or use 'test' as fallback
+          const defaultSlug = process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG;
+
+          if (defaultSlug) {
+            console.log(`[TenantContext] Using default tenant slug: ${defaultSlug}`);
+            // Query the default tenant
+            const { data: defaultTenant, error: defaultError } = await supabase
+              .from('tenants')
+              .select(`
+                id, slug, company_name, status, contact_email, contact_phone,
+                app_name, primary_color, secondary_color, accent_color,
+                light_primary_color, light_secondary_color, light_accent_color, light_background_color,
+                dark_primary_color, dark_secondary_color, dark_accent_color, dark_background_color,
+                light_header_footer_color, dark_header_footer_color,
+                logo_url, favicon_url, hero_background_url,
+                meta_title, meta_description, og_image_url,
+                phone, address, business_hours, google_maps_url,
+                facebook_url, instagram_url, twitter_url, linkedin_url,
+                currency_code, timezone, date_format,
+                min_rental_days, max_rental_days, booking_lead_time_hours,
+                require_identity_verification, require_insurance_upload, payment_mode,
+                pickup_location_mode, return_location_mode, fixed_pickup_address, fixed_return_address
+              `)
+              .eq('slug', defaultSlug)
+              .eq('status', 'active')
+              .single();
+
+            if (defaultTenant && !defaultError) {
+              console.log(`[TenantContext] Loaded default tenant: ${defaultTenant.company_name} (${defaultTenant.id})`);
+              setTenantSlug(defaultSlug);
+              setTenant(defaultTenant as Tenant);
+              setLoading(false);
+              return;
+            } else {
+              console.warn('[TenantContext] Default tenant not found or inactive:', defaultError?.message);
+            }
+          }
+        }
+
         console.log('[TenantContext] No subdomain detected, running without tenant context');
+        console.log('[TenantContext] TIP: Access via subdomain (e.g., test.localhost:3000) or set NEXT_PUBLIC_DEFAULT_TENANT_SLUG in .env.local');
         setTenant(null);
         setLoading(false);
         return;

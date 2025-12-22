@@ -292,14 +292,18 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
     }
   };
 
+  const isControlled = open !== undefined;
+
   return (
     <Dialog open={currentOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button className="bg-gradient-primary text-primary-foreground hover:opacity-90 transition-all duration-200 rounded-lg focus:ring-2 focus:ring-primary">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Vehicle
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button className="bg-gradient-primary text-primary-foreground hover:opacity-90 transition-all duration-200 rounded-lg focus:ring-2 focus:ring-primary">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Vehicle
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[750px] max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="flex-shrink-0 px-4 pt-4 pb-2">
           <DialogTitle className="flex items-center gap-2 text-base">
@@ -332,8 +336,8 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
 
             onSubmit(data);
           })} className="flex flex-col flex-1 overflow-hidden">
-            <ScrollArea className="h-[60vh] px-4">
-              <div className="space-y-3 pr-3 py-1">
+            <ScrollArea className="h-[60vh] px-2">
+              <div className="space-y-3 px-2 py-1">
                 <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
@@ -355,10 +359,11 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Acquisition Date</FormLabel>
-                        <Popover>
+                        <Popover modal={true}>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
+                                type="button"
                                 variant={"outline"}
                                 className={cn(
                                   "w-full pl-3 text-left font-normal",
@@ -374,7 +379,7 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent className="w-auto p-0 z-50" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -383,6 +388,7 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                                 date > new Date() || date < new Date("1900-01-01")
                               }
                               initialFocus
+                              className="pointer-events-auto"
                             />
                           </PopoverContent>
                         </Popover>
@@ -636,10 +642,11 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Inspection Due Date</FormLabel>
-                        <Popover>
+                        <Popover modal={true}>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
+                                type="button"
                                 variant={"outline"}
                                 className={cn(
                                   "w-full pl-3 text-left font-normal",
@@ -649,19 +656,20 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
-                                  <span>Pick MOT due date</span>
+                                  <span>Pick inspection due date</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent className="w-auto p-0 z-50" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
                               disabled={(date) => date < new Date("1900-01-01")}
                               initialFocus
+                              className="pointer-events-auto"
                             />
                           </PopoverContent>
                         </Popover>
@@ -669,17 +677,18 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="tax_due_date"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Registration Due Date</FormLabel>
-                        <Popover>
+                        <Popover modal={true}>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
+                                type="button"
                                 variant={"outline"}
                                 className={cn(
                                   "w-full pl-3 text-left font-normal",
@@ -689,19 +698,20 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
-                                  <span>Pick TAX due date</span>
+                                  <span>Pick registration due date</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent className="w-auto p-0 z-50" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
                               disabled={(date) => date < new Date("1900-01-01")}
                               initialFocus
+                              className="pointer-events-auto"
                             />
                           </PopoverContent>
                         </Popover>
@@ -718,10 +728,11 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Warranty Start Date</FormLabel>
-                        <Popover>
+                        <Popover modal={true}>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
+                                type="button"
                                 variant={"outline"}
                                 className={cn(
                                   "w-full pl-3 text-left font-normal",
@@ -737,13 +748,14 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent className="w-auto p-0 z-50" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
                               disabled={(date) => date < new Date("1900-01-01")}
                               initialFocus
+                              className="pointer-events-auto"
                             />
                           </PopoverContent>
                         </Popover>
@@ -751,17 +763,18 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="warranty_end_date"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Warranty End Date</FormLabel>
-                        <Popover>
+                        <Popover modal={true}>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
+                                type="button"
                                 variant={"outline"}
                                 className={cn(
                                   "w-full pl-3 text-left font-normal",
@@ -777,13 +790,14 @@ export const AddVehicleDialog = ({ open, onOpenChange }: AddVehicleDialogProps) 
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent className="w-auto p-0 z-50" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
                               disabled={(date) => date < new Date("1900-01-01")}
                               initialFocus
+                              className="pointer-events-auto"
                             />
                           </PopoverContent>
                         </Popover>

@@ -192,6 +192,7 @@ const EnhancedBookingWidget = () => {
       monthly_amount: breakdown.total,
       notes: formData.additionalRequirements,
       status: "Pending",
+      source: "booking",
     };
 
     // Add tenant_id if tenant context exists

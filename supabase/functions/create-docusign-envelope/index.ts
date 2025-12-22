@@ -144,29 +144,48 @@ function encodeLengthBytes(length: number): Uint8Array {
 
 // Helper function to import RSA private key for JWT signing
 async function importPrivateKey(pemKey: string): Promise<CryptoKey> {
-  // Remove PEM headers/footers and newlines
+  // Handle both PKCS#1 and PKCS#8 format keys
+  const isPkcs8 = pemKey.includes('-----BEGIN PRIVATE KEY-----');
+  const isPkcs1 = pemKey.includes('-----BEGIN RSA PRIVATE KEY-----');
+
+  if (!isPkcs1 && !isPkcs8) {
+    throw new Error('Invalid private key format. Expected PEM format with BEGIN PRIVATE KEY or BEGIN RSA PRIVATE KEY header');
+  }
+
+  // Remove PEM headers/footers and whitespace
   const pemContents = pemKey
-    .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
-    .replace(/-----END RSA PRIVATE KEY-----/g, '')
+    .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/g, '')
+    .replace(/-----END (RSA )?PRIVATE KEY-----/g, '')
     .replace(/\s/g, '');
 
   // Base64 decode
-  const pkcs1 = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  let keyData: Uint8Array;
+  try {
+    keyData = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  } catch (e) {
+    throw new Error(`Failed to decode base64 private key: ${e.message}`);
+  }
 
-  // Convert PKCS#1 to PKCS#8
-  const pkcs8 = pkcs1ToPkcs8(pkcs1);
+  // If PKCS#1 format, convert to PKCS#8
+  if (isPkcs1) {
+    keyData = pkcs1ToPkcs8(keyData);
+  }
 
   // Import as CryptoKey
-  return await crypto.subtle.importKey(
-    'pkcs8',
-    pkcs8,
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      hash: 'SHA-256',
-    },
-    true,
-    ['sign']
-  );
+  try {
+    return await crypto.subtle.importKey(
+      'pkcs8',
+      keyData,
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
+      },
+      true,
+      ['sign']
+    );
+  } catch (e) {
+    throw new Error(`Failed to import private key: ${e.message}. Make sure the key is valid RSA private key.`);
+  }
 }
 
 // Get DocuSign JWT access token
@@ -238,6 +257,17 @@ async function getDocuSignAccessToken(
 
     if (!response.ok) {
       console.error('DocuSign auth failed:', response.status, responseText);
+      // Parse error for better debugging
+      try {
+        const errorData = JSON.parse(responseText);
+        if (errorData.error === 'consent_required') {
+          console.error('JWT consent required. User must grant consent first.');
+        } else if (errorData.error === 'invalid_grant') {
+          console.error('Invalid grant - check integration key, user ID, and private key.');
+        }
+      } catch (e) {
+        // Not JSON, just log the raw response
+      }
       return null;
     }
 
@@ -423,10 +453,16 @@ async function createDocuSignEnvelope(supabase: any, rentalId: string): Promise<
     );
 
     if (!authResult) {
+      // Generate consent URL for debugging
+      const isDemo = DOCUSIGN_BASE_URL.includes('demo');
+      const consentUrl = isDemo
+        ? `https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=${DOCUSIGN_INTEGRATION_KEY}&redirect_uri=https://developers.docusign.com/platform/auth/consent`
+        : `https://account.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=${DOCUSIGN_INTEGRATION_KEY}&redirect_uri=https://developers.docusign.com/platform/auth/consent`;
+
       return {
         ok: false,
         error: 'Authentication failed',
-        detail: 'Failed to obtain DocuSign access token. Please check credentials and ensure JWT consent is granted.'
+        detail: `Failed to obtain DocuSign access token. If using JWT authentication, ensure consent is granted. Visit: ${consentUrl}`
       };
     }
 
