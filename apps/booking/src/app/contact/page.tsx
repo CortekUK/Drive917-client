@@ -20,6 +20,7 @@ import SEO from "@/components/SEO";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageContent, defaultContactContent, mergeWithDefaults } from "@/hooks/usePageContent";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const contactSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
@@ -47,6 +48,9 @@ const Contact = () => {
     gdprConsent: false,
   });
 
+  // Site settings for phone/email defaults
+  const { settings: siteSettings } = useSiteSettings();
+
   // Fetch CMS content for contact page
   const { data: cmsContent } = usePageContent("contact");
   const content = useMemo(
@@ -56,14 +60,14 @@ const Contact = () => {
 
   // Derive contact settings from CMS content
   const contactSettings = useMemo(() => ({
-    phone: content.contact_info?.phone?.number || "+44 800 123 4567",
-    email: content.contact_info?.email?.address || "info@drive917.com",
-    office_address: content.contact_info?.office?.address || "123 Luxury Lane, London, UK",
-    availability: content.contact_info?.phone?.availability || "24 hours a day, 7 days a week, 365 days a year",
-    whatsapp_number: content.contact_info?.whatsapp?.number || "+447900123456",
+    phone: content.contact_info?.phone?.number || siteSettings.phone_display,
+    email: content.contact_info?.email?.address || siteSettings.email,
+    office_address: content.contact_info?.office?.address || siteSettings.office_address,
+    availability: content.contact_info?.phone?.availability || siteSettings.availability,
+    whatsapp_number: content.contact_info?.whatsapp?.number || siteSettings.whatsapp_number || siteSettings.phone,
     whatsapp_description: content.contact_info?.whatsapp?.description || "Quick response for urgent enquiries",
     email_response_time: content.contact_info?.email?.response_time || "Response within 2 hours during business hours (PST)",
-  }), [content]);
+  }), [content, siteSettings]);
 
   // LocalBusiness schema for SEO
   const businessSchema = {
@@ -187,7 +191,7 @@ const Contact = () => {
         canonical={typeof window !== 'undefined' ? `${window.location.origin}/contact` : 'https://drive917.com/contact'}
       />
       <Navigation />
-      
+
       {/* Hero Section with Texture */}
       <section className="pt-32 pb-24 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-muted/40 to-background pointer-events-none" />
@@ -344,7 +348,7 @@ const Contact = () => {
               <p className="text-sm text-muted-foreground mb-8">
                 {content.contact_form?.subtitle || "We typically reply within 2 hours during business hours."}
               </p>
-              
+
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                 {/* Full Name */}
                 <div className="space-y-2">
@@ -369,7 +373,7 @@ const Contact = () => {
                     </p>
                   )}
                 </div>
-                
+
                 {/* Email */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-base">Email Address *</Label>
@@ -394,7 +398,7 @@ const Contact = () => {
                     </p>
                   )}
                 </div>
-                
+
                 {/* Phone */}
                 <div className="space-y-2">
                   <Label htmlFor="phone" className="text-base">Phone Number *</Label>
@@ -420,7 +424,7 @@ const Contact = () => {
                     </p>
                   )}
                 </div>
-                
+
                 {/* Subject */}
                 <div className="space-y-2">
                   <Label htmlFor="subject" className="text-base">Subject *</Label>
@@ -431,7 +435,7 @@ const Contact = () => {
                       validateField('subject', value);
                     }}
                   >
-                    <SelectTrigger 
+                    <SelectTrigger
                       id="subject"
                       className={`${errors.subject ? 'border-destructive focus-visible:ring-destructive' : ''} h-12`}
                       aria-invalid={!!errors.subject}
@@ -452,7 +456,7 @@ const Contact = () => {
                     </p>
                   )}
                 </div>
-                
+
                 {/* Message */}
                 <div className="space-y-2">
                   <Label htmlFor="message" className="text-base">Message *</Label>
@@ -519,7 +523,7 @@ const Contact = () => {
 
                 {/* Error State */}
                 {submitStatus === 'error' && (
-                  <div 
+                  <div
                     className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-3"
                     role="alert"
                     aria-live="polite"
