@@ -140,13 +140,13 @@ export function AppSidebar() {
   };
   const collapsed = state === "collapsed";
   return <Sidebar collapsible="icon" className="transition-all duration-300 ease-in-out">
-      <SidebarHeader className="h-20 border-b pt-4">
+      <SidebarHeader className="h-16 border-b">
         <div className="flex items-center justify-center w-full h-full transition-all duration-300 ease-in-out">
           {logoUrl ? (
             <img
               src={logoUrl}
               alt={appName}
-              className={`object-cover transition-all duration-300 ease-in-out ${collapsed ? "h-20 w-32" : "h-20 w-32 max-w-[380px]"}`}
+              className={`object-cover transition-all duration-300 ease-in-out mt-2 ${collapsed ? "h-20 w-32" : "h-20 w-32 max-w-[380px]"}`}
               style={{ imageRendering: 'crisp-edges' }}
             />
           ) : (
