@@ -21,7 +21,9 @@
       "Bash(npm run update-cms:*)",
       "Bash(cd:*)",
       "Bash(node -e:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(wc:*)",
+      "Bash(git show:*)"
     ],
     "deny": [],
     "ask": []
